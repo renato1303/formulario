@@ -1,0 +1,8 @@
+{
+  "name": "Será Cacau",
+  "description": "Formulário conversacional premium para captar e qualificar empresas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
