@@ -503,12 +503,12 @@ export default function ThankYouPage({
         </div>
 
         <a
-          href="https://instagram.com/seracacau"
+          href="https://www.instagram.com/sera.cacau.brasil"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#008060] hover:bg-[#00664d] text-white font-sans font-bold text-xs tracking-wider rounded-xl transition-all shadow-md hover:scale-[1.03] active:scale-[0.98] cursor-pointer group"
         >
-          <span>SEGUIR @SERACACAU NO INSTAGRAM</span>
+          <span>SEGUIR @SERA.CACAU.BRASIL NO INSTAGRAM</span>
           <Instagram className="w-4.5 h-4.5 text-white group-hover:scale-110 transition-transform" />
         </a>
       </motion.div>
