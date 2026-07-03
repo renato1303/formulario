@@ -796,11 +796,6 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
           </div>
 
           <div className="flex items-center gap-4">
-            {currentStep > 0 && !isCompleted && !isProcessing && (
-              <span className="text-xs text-gray-400 font-mono tracking-widest">
-                PERGUNTA {currentStep.toString().padStart(2, '0')} / {totalQuestionsCount.toString().padStart(2, '0')}
-              </span>
-            )}
           </div>
         </div>
 
