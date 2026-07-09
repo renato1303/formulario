@@ -75,6 +75,86 @@ export default function App() {
     }));
   }, []);
 
+  // Load and initialize marketing and analytics scripts (Meta Pixel, Google Analytics, GTM) on mount
+  useEffect(() => {
+    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
+    const storedConfig = localStorage.getItem('sensesales_integrations_config');
+    if (storedConfig) {
+      try {
+        config = JSON.parse(storedConfig);
+      } catch (err) {}
+    }
+
+    // 1. Initialize Meta Pixel
+    if (config.metaPixelId && config.metaPixelId !== '1234567890') {
+      try {
+        // Dynamic script injection for Facebook Pixel
+        (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
+          if (f.fbq) return;
+          n = f.fbq = function() {
+            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+          };
+          if (!f._fbq) f._fbq = n;
+          n.push = n;
+          n.loaded = !0;
+          n.version = '2.0';
+          n.queue = [];
+          t = b.createElement(e);
+          t.async = !0;
+          t.src = v;
+          s = b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t, s);
+        })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+
+        (window as any).fbq('init', config.metaPixelId);
+        (window as any).fbq('track', 'PageView');
+        console.log('Meta Pixel initialized with ID:', config.metaPixelId);
+      } catch (e) {
+        console.error('Failed to initialize Meta Pixel:', e);
+      }
+    }
+
+    // 2. Initialize Google Analytics
+    if (config.gaTrackingId && config.gaTrackingId !== 'G-XXXXXXXXXX') {
+      try {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${config.gaTrackingId}`;
+        document.head.appendChild(script);
+
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        function gtag(...args: any[]) {
+          (window as any).dataLayer.push(arguments);
+        }
+        (window as any).gtag = gtag;
+        (window as any).gtag('js', new Date());
+        (window as any).gtag('config', config.gaTrackingId);
+        console.log('Google Analytics initialized with ID:', config.gaTrackingId);
+      } catch (e) {
+        console.error('Failed to initialize Google Analytics:', e);
+      }
+    }
+
+    // 3. Initialize Google Tag Manager
+    if (config.gtmId && config.gtmId !== 'GTM-XXXXXXX') {
+      try {
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        (window as any).dataLayer.push({
+          'gtm.start': new Date().getTime(),
+          event: 'gtm.js'
+        });
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtm.js?id=${config.gtmId}`;
+        document.head.appendChild(script);
+        console.log('Google Tag Manager initialized with ID:', config.gtmId);
+      } catch (e) {
+        console.error('Failed to initialize Google Tag Manager:', e);
+      }
+    }
+  }, []);
+
   // Listen to path changes and hashes to support /admin and #admin routing cleanly
   useEffect(() => {
     const handleLocationRouting = () => {
@@ -286,8 +366,9 @@ export default function App() {
       { id: Math.random().toString(), time: timestamp, action: 'Webhooks', status: 'warn' as const, message: `Iniciando disparo assíncrono para os servidores cadastrados.` }
     ];
 
-    // Fire off to webhooks
+    // Fire off to webhooks and analytics trackers
     triggerWebhooks(finalLead);
+    trackLeadEvent(finalLead, config);
 
     // Save to Supabase
     const isSupabaseConfigured = config.supabaseUrl && 
@@ -364,6 +445,61 @@ export default function App() {
     }
 
     localStorage.setItem('sensesales_integration_logs', JSON.stringify([...newLogs, ...existingLogs].slice(0, 50)));
+  };
+
+  const trackLeadEvent = (finalLead: LeadData, config: IntegrationConfig) => {
+    // 1. Track Meta Pixel
+    if (config.metaPixelId && config.metaPixelId !== '1234567890') {
+      if ((window as any).fbq) {
+        try {
+          (window as any).fbq('track', 'Lead', {
+            content_name: finalLead.nome,
+            value: finalLead.leadScore,
+            currency: 'BRL',
+            predicted_score: finalLead.leadScore
+          });
+          console.log('Meta Pixel Event "Lead" tracked.');
+        } catch (e) {
+          console.error('Error tracking Meta Pixel:', e);
+        }
+      }
+    }
+
+    // 2. Track Google Analytics
+    if (config.gaTrackingId && config.gaTrackingId !== 'G-XXXXXXXXXX') {
+      if ((window as any).gtag) {
+        try {
+          (window as any).gtag('event', 'generate_lead', {
+            value: finalLead.leadScore,
+            currency: 'BRL',
+            lead_id: finalLead.id,
+            lead_score: finalLead.leadScore
+          });
+          console.log('Google Analytics Event "generate_lead" tracked.');
+        } catch (e) {
+          console.error('Error tracking GA:', e);
+        }
+      }
+    }
+
+    // 3. Track Google Tag Manager
+    if (config.gtmId && config.gtmId !== 'GTM-XXXXXXX') {
+      if ((window as any).dataLayer) {
+        try {
+          (window as any).dataLayer.push({
+            event: 'lead_form_submitted',
+            leadId: finalLead.id,
+            leadScore: finalLead.leadScore,
+            leadName: finalLead.nome,
+            leadEmail: finalLead.email,
+            leadPhone: finalLead.whatsapp
+          });
+          console.log('GTM Event "lead_form_submitted" pushed.');
+        } catch (e) {
+          console.error('Error pushing GTM to dataLayer:', e);
+        }
+      }
+    }
   };
 
   const triggerWebhooks = async (finalLead: LeadData) => {

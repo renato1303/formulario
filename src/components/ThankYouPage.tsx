@@ -49,6 +49,22 @@ export default function ThankYouPage({
         if (config.presenterName) {
           setLocalPresenterName(config.presenterName);
         }
+
+        // Track conversion event on thank you page land
+        if (config.metaPixelId && config.metaPixelId !== '1234567890') {
+          if ((window as any).fbq) {
+            (window as any).fbq('track', 'CompleteRegistration', {
+              content_name: 'Quiz Completion Obrigado'
+            });
+          }
+        }
+        if (config.gaTrackingId && config.gaTrackingId !== 'G-XXXXXXXXXX') {
+          if ((window as any).gtag) {
+            (window as any).gtag('event', 'complete_registration', {
+              page_title: 'Obrigado - Quiz Completo'
+            });
+          }
+        }
       } catch (err) {
         console.error('Error reading config for ThankYouPage:', err);
       }
