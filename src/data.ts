@@ -42,7 +42,7 @@ export const QUESTIONS_LIST: Question[] = [
       'Hotel/Pousada',
       'Cafeteria',
       'Emporio/cerealista',
-      'Mercado'
+      'Mercados/Supermercado'
     ],
     required: true,
   },
