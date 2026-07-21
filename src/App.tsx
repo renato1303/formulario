@@ -305,10 +305,12 @@ export default function App() {
   };
 
   // Triggered when loader finishes (2 seconds)
-  const handleLoaderComplete = () => {
+  const handleLoaderComplete = async () => {
     setIsProcessing(false);
     setIsCompleted(true);
-    saveLeadToDatabase();
+    await saveLeadToDatabase();
+    // Redirect immediately to the external thank you page requested by the user
+    window.location.href = "https://paginadeobrigado.seracacau.com.br";
   };
 
   // Save lead details and trigger webhooks
@@ -367,7 +369,7 @@ export default function App() {
     ];
 
     // Fire off to webhooks and analytics trackers
-    triggerWebhooks(finalLead);
+    await triggerWebhooks(finalLead);
     trackLeadEvent(finalLead, config);
 
     // Save to Supabase
@@ -544,11 +546,46 @@ export default function App() {
 
     // Google Sheets App Script send
     if (config.googleSheetsUrl && config.googleSheetsUrl.startsWith('http')) {
+      // Build a custom-ordered lead object that exactly matches Reinaldo's sheet column structure
+      const sheetsLead = {
+        nome: finalLead.nome || '',
+        empresa: finalLead.empresa || '',
+        email: finalLead.email || '',
+        whatsapp: finalLead.whatsapp || '',
+        segmento: finalLead.segmento || '',
+        trabalhaComCacau: finalLead.trabalhaComCacau || '',
+        faturamento: finalLead.faturamento || '',
+        leadScore: finalLead.leadScore !== undefined ? finalLead.leadScore : 0,
+        id: finalLead.id || '',
+        utmSource: finalLead.utmSource || '',
+        utmMedium: finalLead.utmMedium || '',
+        utmCampaign: finalLead.utmCampaign || ''
+      };
+
+      const sheetsPayload = {
+        event: 'lead.qualified',
+        timestamp: new Date().toISOString(),
+        lead: sheetsLead,
+        // Flat-level fallback keys in case the script parses flat properties
+        nome: finalLead.nome || '',
+        empresa: finalLead.empresa || '',
+        email: finalLead.email || '',
+        whatsapp: finalLead.whatsapp || '',
+        segmento: finalLead.segmento || '',
+        trabalhaComCacau: finalLead.trabalhaComCacau || '',
+        faturamento: finalLead.faturamento || '',
+        leadScore: finalLead.leadScore !== undefined ? finalLead.leadScore : 0,
+        id: finalLead.id || '',
+        utmSource: finalLead.utmSource || '',
+        utmMedium: finalLead.utmMedium || '',
+        utmCampaign: finalLead.utmCampaign || ''
+      };
+
       try {
         await fetch(config.googleSheetsUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(sheetsPayload),
           mode: 'no-cors'
         });
       } catch (e) {
@@ -1240,199 +1277,36 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
             </motion.div>
           )}
 
-          {/* STATE 3: FINAL DEBRIEF SCREEN & AGENDAMENTO */}
+          {/* STATE 3: FINAL REDIRECT SCREEN */}
           {isCompleted && !isProcessing && (
-            <div className="w-full max-w-3xl mx-auto space-y-6">
-              {bookedMeeting ? (
-                <ThankYouPage
-                  lead={lead}
-                  bookedMeeting={bookedMeeting}
-                  onReset={() => {
-                    setLead(INITIAL_LEAD_DATA);
-                    setCurrentStep(1);
-                    setIsCompleted(false);
-                    setInputValue('');
-                    setCheckboxValue(false);
-                    setBookedMeeting(null);
-                    setShowBookingStep(true);
-                  }}
-                />
-              ) : showBookingStep ? (
-                <motion.div
-                  key="booking-step"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ 
-                    duration: 0.4,
-                    ease: [0.16, 1, 0.3, 1]
-                  }}
-                >
-                  <BookingCalendar
-                    lead={lead}
-                    onBookingComplete={handleBookingComplete}
-                    onBackToSummary={() => setShowBookingStep(false)}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="completed-screen"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
-                    duration: 0.5,
-                    ease: [0.16, 1, 0.3, 1]
-                  }}
-                  className="w-full space-y-6 p-5 sm:p-8 md:p-12 glass-panel rounded-2xl sm:rounded-[32px] shadow-sm relative overflow-hidden transition-all duration-300 border border-gray-250 bg-white text-left"
-                  id="debrief-screen"
-                >
-                  {/* Badge */}
-                  <div className="flex justify-center">
-                    <div className="inline-flex items-center gap-1.5 bg-[#14B8A6]/10 border border-[#14B8A6]/20 px-3 py-1 rounded-full text-[10px] font-mono text-[#14B8A6] uppercase tracking-widest font-bold">
-                      <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                      <span>{bookedMeeting ? 'CONEXÃO ESTABELECIDA' : 'ANÁLISE SUCEDIDA'}</span>
-                    </div>
-                  </div>
-
-                  {/* Title & Sub */}
-                  <div className="text-center space-y-4">
-                    <h1 className="font-display font-bold text-2xl md:text-4xl text-gray-900 tracking-tight">
-                      {bookedMeeting 
-                        ? 'Reunião agendada com sucesso' 
-                        : 'Sua análise foi concluída'}
-                    </h1>
-                    <p className="text-xs md:text-sm text-gray-500 leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
-                      {bookedMeeting 
-                        ? `Seu horário foi reservado.\n\nVocê receberá um convite por e-mail contendo o link da reunião.\n\nNossa equipe também recebeu suas informações e analisará o perfil da sua empresa antes do encontro.` 
-                        : 'Recebemos suas respostas para analisar sua empresa. Agora, reserve seu horário exclusivo com nossa equipe.'}
-                    </p>
-                  </div>
-
-                  {/* Booked Meeting Detail Card */}
-                  {bookedMeeting && (
-                    <motion.div 
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="border border-[#14B8A6]/25 bg-[#14B8A6]/5 p-6 rounded-2xl space-y-4"
-                      id="booked-meeting-details"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[#14B8A6]/10 border border-[#14B8A6]/20 rounded-xl flex items-center justify-center text-[#14B8A6] shrink-0">
-                            <Calendar className="w-5 h-5 text-[#14B8A6]" />
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-mono text-[#14B8A6] block font-bold">REUNIÃO CONFIRMADA</span>
-                            <span className="text-sm font-bold text-gray-900 block">
-                              {bookedMeeting.date.split('-').reverse().join('/')} às {bookedMeeting.hour}h
-                            </span>
-                          </div>
-                        </div>
-
-                        {bookedMeeting.meetLink && (
-                          <a 
-                            href={bookedMeeting.meetLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#008060] hover:bg-[#00664d] text-white font-mono text-[11px] font-bold rounded-xl transition-all shadow-sm hover:scale-[1.02]"
-                          >
-                            <Video className="w-4 h-4 text-white animate-pulse" />
-                            <span>ENTRAR NO GOOGLE MEET</span>
-                          </a>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-light">
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-1 shadow-sm">
-                          <span className="text-[#14B8A6] block text-[10px] uppercase font-mono tracking-wider font-bold">📅 DATA DA REUNIÃO</span>
-                          <span className="text-gray-950 block font-semibold text-sm">{bookedMeeting.date.split('-').reverse().join('/')}</span>
-                        </div>
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-1 shadow-sm">
-                          <span className="text-[#14B8A6] block text-[10px] uppercase font-mono tracking-wider font-bold">⏰ HORÁRIO DA REUNIÃO</span>
-                          <span className="text-gray-950 block font-semibold text-sm">{bookedMeeting.hour} (Horário de Brasília)</span>
-                        </div>
-                        <div className="bg-white p-3.5 rounded-xl border border-gray-200 space-y-1 md:col-span-2 shadow-sm">
-                          <span className="text-[#008060] block text-[10px] uppercase font-mono tracking-wider font-bold">🎥 LINK GOOGLE MEET</span>
-                          {bookedMeeting.meetLink ? (
-                            <a 
-                              href={bookedMeeting.meetLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[#008060] hover:underline hover:text-[#00664d] font-mono break-all font-medium block text-[11px]"
-                            >
-                              {bookedMeeting.meetLink}
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 block font-mono">Gerando link da sala...</span>
-                          )}
-                        </div>
-                        <div className="p-1.5 md:col-span-2 grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-gray-500 block text-[10px] uppercase font-mono">Participante Lead</span>
-                            <span className="text-gray-950 block font-medium truncate">{lead.nome} ({lead.email})</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 block text-[10px] uppercase font-mono">Apoio Estratégico</span>
-                            <span className="text-gray-950 block font-medium">Equipe Será Cacau</span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Core visual summary of user replies */}
-                  <LeadSummary lead={lead} />
-
-                  {/* Interactive Buttons */}
-                  <div className="flex flex-col items-center gap-3 pt-2 animate-fade-in">
-                    {!bookedMeeting && (
-                      /* CTA to schedule */
-                      <button
-                        onClick={() => setShowBookingStep(true)}
-                        className="w-full py-4 bg-[#008060] hover:bg-[#00664d] text-white font-display font-bold text-sm tracking-wide rounded-2xl transition-all group flex items-center justify-center gap-2.5 scale-100 hover:scale-[1.01] shadow-sm cursor-pointer"
-                        id="btn-trigger-scheduling"
-                      >
-                        <Calendar className="w-4 h-4 text-white animate-bounce" />
-                        <span>RESERVAR HORÁRIO EXCLUSIVO</span>
-                      </button>
-                    )}
-                    
-                    <p className="text-[10px] text-gray-400 font-mono text-center">
-                      {bookedMeeting 
-                        ? 'Você receberá o convite com a sala direto no seu e-mail' 
-                        : 'Você será direcionado para escolher o melhor momento para conversar'}
-                    </p>
-                  </div>
-
-                  {/* Clear button to reset form */}
-                  <div className="flex justify-center pt-3 gap-6 flex-wrap">
-                    {!bookedMeeting && (
-                      <button
-                        onClick={handleSpeakWithSpecialist}
-                        className="text-[10px] text-gray-400 hover:text-gray-900 font-mono tracking-wider transition-colors cursor-pointer"
-                      >
-                        PULAR AGENDAMENTO E FALAR ATRAVÉS DO WHATSAPP
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setLead(INITIAL_LEAD_DATA);
-                        setCurrentStep(1);
-                        setIsCompleted(false);
-                        setInputValue('');
-                        setCheckboxValue(false);
-                        setBookedMeeting(null);
-                        setShowBookingStep(true);
-                      }}
-                      className="text-[10px] text-gray-300 hover:text-gray-600 font-mono tracking-wider transition-colors cursor-pointer"
-                    >
-                      REINICIAR ANÁLISE COMPLETA
-                    </button>
-                  </div>
-
-                </motion.div>
-              )}
-            </div>
+            <motion.div
+              key="completed-redirect"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-md mx-auto space-y-6 p-6 sm:p-10 glass-panel rounded-2xl sm:rounded-[32px] shadow-sm border border-gray-250 bg-white text-center"
+              id="redirect-screen"
+            >
+              <div className="w-16 h-16 bg-[#008060]/10 border border-[#008060]/20 rounded-2xl flex items-center justify-center mx-auto mb-2 animate-pulse">
+                <Check className="w-8 h-8 text-[#008060]" />
+              </div>
+              <div className="space-y-3">
+                <h1 className="font-display font-bold text-2xl text-gray-900 tracking-tight">
+                  Diagnóstico Concluído!
+                </h1>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Suas respostas foram salvas com sucesso. Você está sendo redirecionado para a página de obrigado...
+                </p>
+              </div>
+              <div className="flex justify-center items-center gap-1.5 pt-2">
+                <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <p className="text-[10px] font-mono text-gray-400">
+                Se você não for redirecionado em alguns segundos, <a href="https://paginadeobrigado.seracacau.com.br" className="text-[#008060] font-semibold underline">clique aqui</a>.
+              </p>
+            </motion.div>
           )}
 
         </AnimatePresence>
