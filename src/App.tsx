@@ -309,8 +309,8 @@ export default function App() {
     setIsProcessing(false);
     setIsCompleted(true);
     await saveLeadToDatabase();
-    // Redirect immediately to the external thank you page requested by the user
-    window.location.href = "https://paginadeobrigado.seracacau.com.br";
+    // Redirect immediately to the scheduling page requested by the user
+    window.location.href = "https://agendamento.seracacau.com.br/";
   };
 
   // Save lead details and trigger webhooks
@@ -1295,7 +1295,7 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
                   Diagnóstico Concluído!
                 </h1>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  Suas respostas foram salvas com sucesso. Você está sendo redirecionado para a página de obrigado...
+                  Suas respostas foram salvas com sucesso. Você está sendo redirecionado para a página de agendamento...
                 </p>
               </div>
               <div className="flex justify-center items-center gap-1.5 pt-2">
@@ -1304,7 +1304,7 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
                 <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
               <p className="text-[10px] font-mono text-gray-400">
-                Se você não for redirecionado em alguns segundos, <a href="https://paginadeobrigado.seracacau.com.br" className="text-[#008060] font-semibold underline">clique aqui</a>.
+                Se você não for redirecionado em alguns segundos, <a href="https://agendamento.seracacau.com.br/" className="text-[#008060] font-semibold underline">clique aqui</a>.
               </p>
             </motion.div>
           )}
