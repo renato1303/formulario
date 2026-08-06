@@ -49,6 +49,7 @@ export default function App() {
     const utm_source = params.get('utm_source') || params.get('src') || '';
     const utm_medium = params.get('utm_medium') || '';
     const utm_campaign = params.get('utm_campaign') || '';
+    const utm_content = params.get('utm_content') || params.get('utm_term') || '';
 
     // Simple UserAgent detection for tracking
     const ua = navigator.userAgent;
@@ -70,6 +71,7 @@ export default function App() {
       utmSource: utm_source || undefined,
       utmMedium: utm_medium || undefined,
       utmCampaign: utm_campaign || undefined,
+      utmContent: utm_content || undefined,
       device: os,
       browser: browser
     }));
@@ -309,8 +311,17 @@ export default function App() {
     setIsProcessing(false);
     setIsCompleted(true);
     await saveLeadToDatabase();
-    // Redirect immediately to the scheduling page requested by the user
-    window.location.href = "https://agendamento.seracacau.com.br/";
+    
+    // Redirect to configured URL in Admin Panel (or default)
+    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
+    const storedConfig = localStorage.getItem('sensesales_integrations_config');
+    if (storedConfig) {
+      try {
+        config = JSON.parse(storedConfig);
+      } catch (err) {}
+    }
+    const targetRedirect = config.redirectUrl || "https://contato.seracacau.com.br/";
+    window.location.href = targetRedirect;
   };
 
   // Save lead details and trigger webhooks
@@ -514,10 +525,86 @@ export default function App() {
       } catch (err) {}
     }
 
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const dataHoraFormatted = `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+
+    const rawScore = finalLead.leadScore !== undefined ? finalLead.leadScore : calculateLeadScore(finalLead);
+    const scoreFormatted = `${rawScore}%`;
+
+    const plataforma = finalLead.utmSource || 'FB';
+    const anuncio = finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030';
+    const campanha = finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030';
+
+    // Sheet Lead formatted to match the exact Google Sheet columns:
+    // A: Data/hora | B: Nome | C: Nome da empresa | D: E-mail | E: Telefone / WhatsApp | F: Segmento | G: Já trabalhou com cacau | H: Faturamento | I: % percentual | J: ID | K: UTM Source | L: UTM Medium | M: UTM Campaign
+    const formattedLead = {
+      // Direct keys matching Apps Script lead properties:
+      nome: finalLead.nome || '',
+      empresa: finalLead.empresa || '',
+      email: finalLead.email || '',
+      whatsapp: finalLead.whatsapp || finalLead.telefone || '',
+      telefone: finalLead.whatsapp || finalLead.telefone || '',
+      segmento: finalLead.segmento || '',
+      trabalhaComCacau: finalLead.trabalhaComCacau || '',
+      ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
+      faturamento: finalLead.faturamento || '',
+      leadScore: rawScore,
+      percentual: scoreFormatted,
+      id: finalLead.id || '',
+      utmSource: finalLead.utmSource || 'FB',
+      utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+      utmCampaign: finalLead.utmCampaign || '',
+
+      // Column name keys for backwards compatibility
+      'Data/hora': dataHoraFormatted,
+      'Nome': finalLead.nome || '',
+      'Nome da empresa': finalLead.empresa || '',
+      'E-mail': finalLead.email || '',
+      'Telefone': finalLead.whatsapp || finalLead.telefone || '',
+      'Segmento': finalLead.segmento || '',
+      'Já trabalhou com cacau': finalLead.trabalhaComCacau || '',
+      'Faturamento': finalLead.faturamento || '',
+      '% percentual': scoreFormatted,
+      'ID': finalLead.id || '',
+      'UTM Source': finalLead.utmSource || 'FB',
+      'UTM Medium': finalLead.utmMedium || finalLead.utmContent || '',
+      'UTM Campaign': finalLead.utmCampaign || '',
+      'Plataforma': finalLead.utmSource || 'FB',
+      'Anuncio': finalLead.utmMedium || finalLead.utmContent || '',
+      'Campanha': finalLead.utmCampaign || '',
+      dataHora: dataHoraFormatted,
+      data_hora: dataHoraFormatted
+    };
+
+    const orderedRow = [
+      dataHoraFormatted,
+      finalLead.nome || '',
+      finalLead.empresa || '',
+      finalLead.email || '',
+      finalLead.whatsapp || finalLead.telefone || '',
+      finalLead.segmento || '',
+      finalLead.trabalhaComCacau || '',
+      finalLead.faturamento || '',
+      scoreFormatted,
+      finalLead.id || '',
+      finalLead.utmSource || 'FB',
+      finalLead.utmMedium || finalLead.utmContent || '',
+      finalLead.utmCampaign || ''
+    ];
+
     const payload = {
       event: 'lead.qualified',
       timestamp: new Date().toISOString(),
-      lead: finalLead
+      lead: formattedLead,
+      ...formattedLead,
+      row: orderedRow,
+      values: orderedRow
     };
 
     // Standard webhook send
@@ -544,47 +631,29 @@ export default function App() {
       } catch (e) {}
     }
 
-    // Google Sheets App Script send
+    // Google Sheets App Script send (matching user's active doPost script)
     if (config.googleSheetsUrl && config.googleSheetsUrl.startsWith('http')) {
-      // Build a custom-ordered lead object that exactly matches Reinaldo's sheet column structure
-      const sheetsLead = {
-        nome: finalLead.nome || '',
-        empresa: finalLead.empresa || '',
-        email: finalLead.email || '',
-        whatsapp: finalLead.whatsapp || '',
-        segmento: finalLead.segmento || '',
-        trabalhaComCacau: finalLead.trabalhaComCacau || '',
-        faturamento: finalLead.faturamento || '',
-        leadScore: finalLead.leadScore !== undefined ? finalLead.leadScore : 0,
-        id: finalLead.id || '',
-        utmSource: finalLead.utmSource || '',
-        utmMedium: finalLead.utmMedium || '',
-        utmCampaign: finalLead.utmCampaign || ''
-      };
-
-      const sheetsPayload = {
-        event: 'lead.qualified',
-        timestamp: new Date().toISOString(),
-        lead: sheetsLead,
-        // Flat-level fallback keys in case the script parses flat properties
-        nome: finalLead.nome || '',
-        empresa: finalLead.empresa || '',
-        email: finalLead.email || '',
-        whatsapp: finalLead.whatsapp || '',
-        segmento: finalLead.segmento || '',
-        trabalhaComCacau: finalLead.trabalhaComCacau || '',
-        faturamento: finalLead.faturamento || '',
-        leadScore: finalLead.leadScore !== undefined ? finalLead.leadScore : 0,
-        id: finalLead.id || '',
-        utmSource: finalLead.utmSource || '',
-        utmMedium: finalLead.utmMedium || '',
-        utmCampaign: finalLead.utmCampaign || ''
-      };
-
       try {
+        const sheetsPayload = {
+          lead: {
+            nome: finalLead.nome || '',
+            empresa: finalLead.empresa || '',
+            email: finalLead.email || '',
+            whatsapp: finalLead.whatsapp || finalLead.telefone || '',
+            segmento: finalLead.segmento || '',
+            trabalhaComCacau: finalLead.trabalhaComCacau || '',
+            faturamento: finalLead.faturamento || '',
+            leadScore: rawScore,
+            id: finalLead.id || '',
+            utmSource: finalLead.utmSource || 'FB',
+            utmMedium: finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030',
+            utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030'
+          }
+        };
+
         await fetch(config.googleSheetsUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(sheetsPayload),
           mode: 'no-cors'
         });
@@ -1295,7 +1364,7 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
                   Diagnóstico Concluído!
                 </h1>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  Suas respostas foram salvas com sucesso. Você está sendo redirecionado para a página de agendamento...
+                  Suas respostas foram salvas com sucesso. Você está sendo redirecionado para a página de contato...
                 </p>
               </div>
               <div className="flex justify-center items-center gap-1.5 pt-2">
@@ -1304,7 +1373,7 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
                 <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
               <p className="text-[10px] font-mono text-gray-400">
-                Se você não for redirecionado em alguns segundos, <a href="https://agendamento.seracacau.com.br/" className="text-[#008060] font-semibold underline">clique aqui</a>.
+                Se você não for redirecionado em alguns segundos, <a href="https://contato.seracacau.com.br/" className="text-[#008060] font-semibold underline">clique aqui</a>.
               </p>
             </motion.div>
           )}

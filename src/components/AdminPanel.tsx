@@ -358,39 +358,56 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     }
 
     const headers = [
-      'ID', 'Data Cadastro', 'Hora Cadastro', 'Nome', 'Email', 'WhatsApp', 'Empresa', 'Segmento', 'Faturamento Mensal', 
-      'Operacao Comercial', 'Origem Leads', 'CRM em Uso', 'Principal Desafio', 'Cenario/Momento', 'Investimento Marketing', 
-      'Equipe Comercial', 'Prazo Inicio', 'Score Geral (%)', 'Status Comercial', 'Data Reuniao', 'Hora Reuniao', 'Sala Meet',
-      'UTM Source', 'UTM Medium', 'UTM Campaign'
+      'Data/hora',
+      'Nome',
+      'Nome da empresa',
+      'E-mail',
+      'Telefone',
+      'Segmento',
+      'Já trabalhou com cacau',
+      'Faturamento',
+      '% percentual',
+      'ID',
+      'Plataforma',
+      'Anuncio',
+      'Campanha'
     ];
 
-    const rows = leads.map(l => [
-      l.id,
-      l.dataCadastro || (l.createdAt ? new Date(l.createdAt).toLocaleDateString('pt-BR') : ''),
-      l.horaCadastro || (l.createdAt ? new Date(l.createdAt).toLocaleTimeString('pt-BR').slice(0, 5) : ''),
-      l.nome,
-      l.email,
-      l.whatsapp || l.telefone || '',
-      l.empresa,
-      l.segmento || '',
-      l.faturamento || '',
-      l.operacaoComercial || '',
-      Array.isArray(l.origemLeads) ? l.origemLeads.join(', ') : (l.origemLeads || ''),
-      l.crm || '',
-      l.desafioPrincipal || '',
-      l.momentoEmpresa || '',
-      l.investimentoMarketing || '',
-      l.equipeComercial || '',
-      l.prazoInicio || '',
-      (l.leadScore ?? calculateLeadScore(l)).toString() + '%',
-      l.status || 'Novo',
-      l.dataReuniao || '',
-      l.horaReuniao || '',
-      l.googleMeetLink || '',
-      l.utmSource || '',
-      l.utmMedium || '',
-      l.utmCampaign || ''
-    ]);
+    const rows = leads.map(l => {
+      const scoreVal = l.leadScore ?? calculateLeadScore(l);
+      const scoreFormatted = `${scoreVal}%`;
+      const dateObj = l.createdAt ? new Date(l.createdAt) : new Date();
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = dateObj.getFullYear();
+      const hours = String(dateObj.getHours()).padStart(2, '0');
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+      const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+      
+      const dataHoraStr = (l.dataCadastro && l.horaCadastro)
+        ? `${l.dataCadastro.replace(/\//g, '.')} ${l.horaCadastro}:00`
+        : `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+
+      const plataforma = l.utmSource || 'FB';
+      const anuncio = l.utmMedium || l.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030';
+      const campanha = l.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030';
+
+      return [
+        dataHoraStr,
+        l.nome || '',
+        l.empresa || '',
+        l.email || '',
+        l.whatsapp || l.telefone || '',
+        l.segmento || '',
+        l.trabalhaComCacau || '',
+        l.faturamento || '',
+        scoreFormatted,
+        l.id || '',
+        plataforma,
+        anuncio,
+        campanha
+      ];
+    });
 
     const csvHeaderString = headers.join(';');
     const csvRowsString = rows.map(e => e.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(';')).join('\n');
@@ -1210,6 +1227,54 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         type="text"
                         value={integrationConfig.googleSheetsUrl}
                         onChange={(e) => saveConfig({ ...integrationConfig, googleSheetsUrl: e.target.value })}
+                        className="w-full text-xs font-mono bg-[#0D0D0D] border border-white/10 rounded-xl px-3 py-2 text-white"
+                      />
+                      <details className="mt-2 text-[11px] text-[#A1A1AA]">
+                        <summary className="cursor-pointer hover:text-white transition-colors font-mono">
+                          📋 Ver código para o Google Apps Script (13 Colunas)
+                        </summary>
+                        <div className="mt-2 p-3 bg-[#000000] border border-white/10 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto select-all">
+{`function doPost(e) {
+  try {
+    var jsonString = e.postData.contents;
+    var data = JSON.parse(jsonString);
+    var lead = data.lead;
+    
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    sheet.appendRow([
+      new Date(),                     // Coluna A: Data/Hora do envio
+      lead.nome || "",                // Coluna B: Nome
+      lead.empresa || "",             // Coluna C: Nome da empresa
+      lead.email || "",               // Coluna D: E-mail
+      lead.whatsapp || "",            // Coluna E: Telefone / WhatsApp
+      lead.segmento || "",            // Coluna F: Segmento
+      lead.trabalhaComCacau || "",    // Coluna G: Já trabalhou com cacau?
+      lead.faturamento || "",         // Coluna H: Faturamento
+      (lead.leadScore || 0) + "%",    // Coluna I: % percentual (Score)
+      lead.id || "",                  // Coluna J: ID único do lead
+      lead.utmSource || "",           // Coluna K: UTM Source (ex: facebook / google)
+      lead.utmMedium || "",           // Coluna L: UTM Medium (ex: cpc / stories)
+      lead.utmCampaign || ""          // Coluna M: UTM Campaign (ex: campanha-cacau-01)
+    ]);
+    
+    return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+}`}
+                        </div>
+                      </details>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wide mb-1">URL DE REDIRECIONAMENTO FINAL (APÓS FORMULÁRIO)</label>
+                      <input
+                        type="text"
+                        value={integrationConfig.redirectUrl || ''}
+                        onChange={(e) => saveConfig({ ...integrationConfig, redirectUrl: e.target.value })}
+                        placeholder="https://contato.seracacau.com.br/"
                         className="w-full text-xs font-mono bg-[#0D0D0D] border border-white/10 rounded-xl px-3 py-2 text-white"
                       />
                     </div>

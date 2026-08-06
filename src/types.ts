@@ -22,6 +22,7 @@ export interface LeadData {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  utmContent?: string;
   device?: string;
   browser?: string;
 
@@ -55,6 +56,7 @@ export interface IntegrationConfig {
   gtmId: string;
   googleSheetsUrl: string;
   calendlyUrl?: string;
+  redirectUrl?: string;
   adminPassword?: string;
   thankYouVideoUrl?: string;
   presenterName?: string;
