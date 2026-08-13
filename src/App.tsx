@@ -463,8 +463,12 @@ export default function App() {
       { id: Math.random().toString(), time: timestamp, action: 'Webhooks', status: 'warn' as const, message: `Iniciando disparo assíncrono para os servidores cadastrados.` }
     ];
 
-    // Fire off to webhooks and analytics trackers asynchronously without blocking redirect flow
-    triggerWebhooks(finalLead).catch(e => console.error('Error triggering webhooks:', e));
+    // Fire off to webhooks and analytics trackers
+    try {
+      await triggerWebhooks(finalLead);
+    } catch (e) {
+      console.error('Error triggering webhooks:', e);
+    }
     try {
       trackLeadEvent(finalLead, config);
     } catch (e) {
@@ -727,7 +731,8 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          mode: 'no-cors'
+          mode: 'no-cors',
+          keepalive: true
         });
       } catch (e) {}
     }
@@ -739,7 +744,8 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          mode: 'no-cors'
+          mode: 'no-cors',
+          keepalive: true
         });
       } catch (e) {}
     }
@@ -748,6 +754,8 @@ export default function App() {
     if (config.googleSheetsUrl && config.googleSheetsUrl.startsWith('http')) {
       try {
         const sheetsPayload = {
+          ...formattedLead,
+          ...payload,
           lead: {
             nome: finalLead.nome || '',
             empresa: finalLead.empresa || '',
@@ -778,16 +786,43 @@ export default function App() {
             mensagemWhatsapp: encodedWhatsappMessage,
             whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`
           },
+          // Root-level variables
+          nome: finalLead.nome || '',
+          empresa: finalLead.empresa || '',
+          email: finalLead.email || '',
+          whatsapp: finalLead.whatsapp || finalLead.telefone || '',
+          telefone: finalLead.whatsapp || finalLead.telefone || '',
+          segmento: finalLead.segmento || '',
+          trabalhaComCacau: finalLead.trabalhaComCacau || '',
+          ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
+          faturamento: finalLead.faturamento || '',
+          operacaoComercial: finalLead.operacaoComercial || '',
+          origemLeads: Array.isArray(finalLead.origemLeads) ? finalLead.origemLeads.join(', ') : (finalLead.origemLeads || ''),
+          crm: finalLead.crm || '',
+          desafioPrincipal: finalLead.desafioPrincipal || '',
+          momentoEmpresa: finalLead.momentoEmpresa || '',
+          investimentoMarketing: finalLead.investimentoMarketing || '',
+          equipeComercial: finalLead.equipeComercial || '',
+          prazoInicio: finalLead.prazoInicio || '',
+          leadScore: rawScore,
+          percentual: scoreFormatted,
+          id: finalLead.id || '',
+          utmSource: finalLead.utmSource || 'FB',
+          utmMedium: finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030',
+          utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030',
           mensagem: plainTextMessage,
           message: plainTextMessage,
-          resumo: plainTextMessage
+          resumo: plainTextMessage,
+          mensagemWhatsapp: encodedWhatsappMessage,
+          whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`
         };
 
         await fetch(config.googleSheetsUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(sheetsPayload),
-          mode: 'no-cors'
+          mode: 'no-cors',
+          keepalive: true
         });
       } catch (e) {
         console.error('Error sending lead to Google Sheets:', e);
