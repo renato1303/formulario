@@ -110,15 +110,16 @@ export default function BookingCalendar({ lead, onBookingComplete, onBackToSumma
   const getPrefilledUrl = () => {
     try {
       const urlObj = new URL(calendlyUrl);
+      const safeLead = lead || {} as LeadData;
       
-      if (lead.nome) {
-        urlObj.searchParams.append('name', lead.nome);
+      if (safeLead.nome) {
+        urlObj.searchParams.append('name', safeLead.nome);
       }
-      if (lead.email) {
-        urlObj.searchParams.append('email', lead.email);
+      if (safeLead.email) {
+        urlObj.searchParams.append('email', safeLead.email);
       }
       
-      const phoneVal = lead.whatsapp || lead.telefone || '';
+      const phoneVal = safeLead.whatsapp || safeLead.telefone || '';
       if (phoneVal) {
         urlObj.searchParams.append('phone', phoneVal);
         urlObj.searchParams.append('a1', phoneVal);
@@ -129,7 +130,8 @@ export default function BookingCalendar({ lead, onBookingComplete, onBackToSumma
 
       return urlObj.toString();
     } catch (e) {
-      return `${calendlyUrl}?name=${encodeURIComponent(lead.nome || '')}&email=${encodeURIComponent(lead.email || '')}`;
+      const safeLead = lead || {} as LeadData;
+      return `${calendlyUrl}?name=${encodeURIComponent(safeLead.nome || '')}&email=${encodeURIComponent(safeLead.email || '')}`;
     }
   };
 

@@ -63,10 +63,10 @@ export const QUESTIONS_LIST: Question[] = [
     type: 'select',
     title: 'Qual faturamento médio por mês da sua empresa?',
     options: [
-      'Abaixo de R$30mil',
-      'Entre R$ 30mil a R$50mil',
-      'Entre R$50mil a R$80mil',
-      'Acima de R$80mil'
+      'R$ 50 mil',
+      'Entre R$50 mil e R$80mil',
+      'Entre R$80mil e R$100mil',
+      'Acima de R$100mil'
     ],
     required: true,
   }
@@ -134,35 +134,92 @@ export function validatePhone(phone: string): boolean {
   return digits.length >= 10 && digits.length <= 11;
 }
 
-export function buildWhatsAppMessage(lead: LeadData): string {
-  const baseMessage = `Olá, sou ${lead.nome}.
+export function buildFormattedMessageText(lead?: LeadData | Partial<LeadData> | null): string {
+  if (!lead) return '';
+  const score = lead.leadScore !== undefined && lead.leadScore !== null
+    ? lead.leadScore
+    : calculateLeadScore(lead);
 
-Acabei de preencher as informações de qualificação!
+  const phone = lead.whatsapp || lead.telefone || 'Não informado';
+  const trabalhaCacau = lead.trabalhaComCacau || 'Não informado';
 
-📋 RESUMO DOS MEUS DADOS:
-- Empresa: ${lead.empresa}
-- E-mail: ${lead.email}
-- WhatsApp: ${lead.whatsapp}
-- Segmento: ${lead.segmento}
-- Já trabalha com cacau?: ${lead.trabalhaComCacau || 'Não informado'}
-- Faturamento mensal: ${lead.faturamento}
+  const origens = Array.isArray(lead.origemLeads)
+    ? lead.origemLeads.filter(Boolean).join(', ')
+    : (lead.origemLeads || '');
 
-📊 Score de Qualificação: ${lead.leadScore ?? 0}%
+  const lines: string[] = [
+    `Olá, sou ${lead.nome || 'Cliente'}.`,
+    ``,
+    `Acabei de preencher as informações de qualificação no formulário!`,
+    ``,
+    `📋 RESUMO DAS RESPOSTAS DO FORMULÁRIO:`,
+    `• Nome: ${lead.nome || 'Não informado'}`,
+    `• Empresa: ${lead.empresa || 'Não informada'}`,
+    `• E-mail: ${lead.email || 'Não informado'}`,
+    `• WhatsApp / Telefone: ${phone}`,
+    `• Segmento da Empresa: ${lead.segmento || 'Não informado'}`,
+    `• Já trabalha com cacau?: ${trabalhaCacau}`,
+    `• Faturamento médio mensal: ${lead.faturamento || 'Não informado'}`
+  ];
 
-Desejo dar prosseguimento e conversar com o especialista responsável!`;
+  if (lead.operacaoComercial) {
+    lines.push(`• Operação Comercial: ${lead.operacaoComercial}`);
+  }
+  if (origens) {
+    lines.push(`• Origem de Leads: ${origens}`);
+  }
+  if (lead.crm) {
+    lines.push(`• Usa CRM?: ${lead.crm}`);
+  }
+  if (lead.desafioPrincipal) {
+    lines.push(`• Principal Desafio: ${lead.desafioPrincipal}`);
+  }
+  if (lead.momentoEmpresa) {
+    lines.push(`• Momento Atual da Empresa: ${lead.momentoEmpresa}`);
+  }
+  if (lead.investimentoMarketing) {
+    lines.push(`• Investimento em Marketing: ${lead.investimentoMarketing}`);
+  }
+  if (lead.equipeComercial) {
+    lines.push(`• Tamanho da Equipe Comercial: ${lead.equipeComercial}`);
+  }
+  if (lead.prazoInicio) {
+    lines.push(`• Prazo de Início Desejado: ${lead.prazoInicio}`);
+  }
+  if (lead.dataReuniao) {
+    lines.push(`• Reunião Agendada: ${lead.dataReuniao} às ${lead.horaReuniao || ''}`);
+  }
 
-  return encodeURIComponent(baseMessage);
+  lines.push(``);
+  lines.push(`📊 Score de Qualificação: ${score}%`);
+  lines.push(``);
+  lines.push(`Desejo dar prosseguimento e conversar com o especialista responsável!`);
+
+  return lines.join('\n');
 }
 
-export function calculateLeadScore(lead: Partial<LeadData>): number {
+export function buildWhatsAppMessage(lead?: LeadData | Partial<LeadData> | null): string {
+  if (!lead) return '';
+  return encodeURIComponent(buildFormattedMessageText(lead));
+}
+
+export function calculateLeadScore(lead?: Partial<LeadData> | null): number {
+  if (!lead) return 0;
   let score = 0;
 
   // 1. Faturamento médio mensal (Max 100)
   const faturamento = lead.faturamento || '';
-  if (faturamento.includes('Abaixo de R$30mil')) score += 30;
-  else if (faturamento.includes('R$ 30mil a R$50mil')) score += 60;
-  else if (faturamento.includes('R$50mil a R$80mil')) score += 85;
-  else if (faturamento.includes('Acima de R$80mil')) score += 100;
+  if (faturamento.includes('Acima de R$100mil') || faturamento.includes('100mil') || faturamento.includes('100 mil')) {
+    if (faturamento.includes('Acima')) {
+      score += 100; // Acima de R$100mil
+    } else {
+      score += 85;  // Entre R$80mil e R$100mil
+    }
+  } else if (faturamento.includes('80mil') || faturamento.includes('80 mil')) {
+    score += 70;    // Entre R$50 mil e R$80mil
+  } else if (faturamento) {
+    score += 40;    // Até R$ 50 mil
+  }
 
   // 2. Trabalha com cacau (Max 100)
   const trabalhaComCacau = lead.trabalhaComCacau || '';

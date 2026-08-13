@@ -10,14 +10,15 @@ interface SummaryProps {
 }
 
 export default function LeadSummary({ lead }: SummaryProps) {
+  const safeLead = lead || {} as LeadData;
   const summaryFields = [
-    { label: 'Nome Completo', value: lead.nome, icon: User, color: 'text-[#008060]' },
-    { label: 'WhatsApp', value: lead.whatsapp || 'Não informado', icon: Phone, color: 'text-[#008060]' },
-    { label: 'E-mail', value: lead.email, icon: Mail, color: 'text-[#008060]' },
-    { label: 'Nome da Empresa', value: lead.empresa, icon: Building2, color: 'text-[#14B8A6]' },
-    { label: 'Segmento de Atuação', value: lead.segmento, icon: Briefcase, color: 'text-[#14B8A6]' },
-    { label: 'Trabalha com Cacau?', value: lead.trabalhaComCacau || 'Não informado', icon: Activity, color: 'text-[#008060]' },
-    { label: 'Faturamento Mensal', value: lead.faturamento, icon: DollarSign, color: 'text-[#14B8A6]' },
+    { label: 'Nome Completo', value: safeLead.nome || 'Não informado', icon: User, color: 'text-[#008060]' },
+    { label: 'WhatsApp', value: safeLead.whatsapp || safeLead.telefone || 'Não informado', icon: Phone, color: 'text-[#008060]' },
+    { label: 'E-mail', value: safeLead.email || 'Não informado', icon: Mail, color: 'text-[#008060]' },
+    { label: 'Nome da Empresa', value: safeLead.empresa || 'Não informada', icon: Building2, color: 'text-[#14B8A6]' },
+    { label: 'Segmento de Atuação', value: safeLead.segmento || 'Não informado', icon: Briefcase, color: 'text-[#14B8A6]' },
+    { label: 'Trabalha com Cacau?', value: safeLead.trabalhaComCacau || 'Não informado', icon: Activity, color: 'text-[#008060]' },
+    { label: 'Faturamento Mensal', value: safeLead.faturamento || 'Não informado', icon: DollarSign, color: 'text-[#14B8A6]' },
   ];
 
   return (
@@ -25,7 +26,7 @@ export default function LeadSummary({ lead }: SummaryProps) {
       <div className="flex items-center gap-2 mb-4 bg-[#14B8A6]/5 border border-[#14B8A6]/10 rounded-xl px-4 py-3">
         <Zap className="w-5 h-5 text-[#14B8A6] shrink-0 animate-pulse" />
         <p className="text-xs text-gray-700 tracking-wide leading-relaxed font-sans font-medium">
-          Diagnóstico pronto para a sua operação estratégica. Com base nos seus dados de faturamento (<span className="text-[#14B8A6] font-bold">{lead.faturamento}</span>) e processos, preparamos um plano de crescimento sob medida.
+          Diagnóstico pronto para a sua operação estratégica. Com base nos seus dados de faturamento (<span className="text-[#14B8A6] font-bold">{safeLead.faturamento || 'Não informado'}</span>) e processos, preparamos um plano de crescimento sob medida.
         </p>
       </div>
 

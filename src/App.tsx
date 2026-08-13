@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { 
   QUESTIONS_LIST, INITIAL_LEAD_DATA, maskPhone, validateEmail, 
-  validatePhone, buildWhatsAppMessage, DEFAULT_INTEGRATIONS_CONFIG, calculateLeadScore 
+  validatePhone, buildWhatsAppMessage, buildFormattedMessageText, DEFAULT_INTEGRATIONS_CONFIG, calculateLeadScore 
 } from './data';
 import { LeadData, Question, IntegrationConfig, BookedMeeting } from './types';
 import { createClient } from '@supabase/supabase-js';
@@ -19,12 +19,14 @@ import ThankYouPage from './components/ThankYouPage';
 
 export default function App() {
   const [lead, setLead] = useState<LeadData>(INITIAL_LEAD_DATA);
+  const leadRef = useRef<LeadData>(INITIAL_LEAD_DATA);
   const [currentStep, setCurrentStep] = useState<number>(1); // 1+ = Questions (started directly as requested)
   const [inputValue, setInputValue] = useState<string>('');
   const [checkboxValue, setCheckboxValue] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [computedRedirectUrl, setComputedRedirectUrl] = useState<string>("https://contato.seracacau.com.br/");
   
   // Booking/Scheduling States
   const [bookedMeeting, setBookedMeeting] = useState<BookedMeeting | null>(null);
@@ -66,14 +68,23 @@ export default function App() {
 
     setDeviceInfo({ os, browser });
 
-    setLead(prev => ({
-      ...prev,
+    const initialUtmLead = {
       utmSource: utm_source || undefined,
       utmMedium: utm_medium || undefined,
       utmCampaign: utm_campaign || undefined,
       utmContent: utm_content || undefined,
       device: os,
       browser: browser
+    };
+
+    leadRef.current = {
+      ...leadRef.current,
+      ...initialUtmLead
+    };
+
+    setLead(prev => ({
+      ...prev,
+      ...initialUtmLead
     }));
   }, []);
 
@@ -195,18 +206,18 @@ export default function App() {
   useEffect(() => {
     if (currentQuestion) {
       const activeVariable = currentQuestion.variable;
+      const currentVal = leadRef.current[activeVariable];
+
       if (currentQuestion.type === 'checkbox') {
-        setCheckboxValue(lead[activeVariable] as boolean || false);
+        setCheckboxValue(Boolean(currentVal));
       } else if (currentQuestion.type === 'multiselect') {
-        if (!Array.isArray(lead[activeVariable])) {
-          setLead(prev => ({
-            ...prev,
-            [activeVariable]: []
-          }));
+        if (!Array.isArray(currentVal)) {
+          leadRef.current = { ...leadRef.current, [activeVariable]: [] };
+          setLead(prev => ({ ...prev, [activeVariable]: [] }));
         }
         setInputValue('');
       } else {
-        setInputValue((lead[activeVariable] as string) || '');
+        setInputValue((currentVal as string) || '');
       }
       setValidationError(null);
 
@@ -227,6 +238,20 @@ export default function App() {
     }
     setInputValue(value);
     if (validationError) setValidationError(null);
+
+    // Sync input real-time into leadRef and lead state
+    if (currentQuestion) {
+      const activeVariable = currentQuestion.variable;
+      const val = value.trim();
+      leadRef.current = {
+        ...leadRef.current,
+        [activeVariable]: val
+      };
+      setLead(prev => ({
+        ...prev,
+        [activeVariable]: val
+      }));
+    }
   };
 
   // Validate current answer
@@ -242,7 +267,7 @@ export default function App() {
     }
 
     if (currentQuestion.type === 'multiselect') {
-      const selectedArr = lead[currentQuestion.variable];
+      const selectedArr = leadRef.current[currentQuestion.variable];
       if (currentQuestion.required && (!Array.isArray(selectedArr) || selectedArr.length === 0)) {
         setValidationError('Por favor, selecione pelo menos uma opção para darmos prosseguimento.');
         return false;
@@ -278,23 +303,26 @@ export default function App() {
   const handleNext = () => {
     if (!validateCurrentAnswer()) return;
 
-    // Save answer to state
+    // Save answer to state & ref
     if (currentQuestion) {
       const activeVariable = currentQuestion.variable;
+      let finalVal: any;
       if (currentQuestion.type === 'checkbox') {
-        setLead(prev => ({
-          ...prev,
-          [activeVariable]: checkboxValue
-        }));
+        finalVal = checkboxValue;
       } else if (currentQuestion.type === 'multiselect') {
-        // MULTISELECT fields are updated incrementally via handleMultiSelectToggle!
+        finalVal = leadRef.current[activeVariable] || [];
       } else {
-        const finalValue = inputValue.trim();
-        setLead(prev => ({
-          ...prev,
-          [activeVariable]: finalValue
-        }));
+        finalVal = inputValue.trim();
       }
+
+      leadRef.current = {
+        ...leadRef.current,
+        [activeVariable]: finalVal
+      };
+      setLead(prev => ({
+        ...prev,
+        [activeVariable]: finalVal
+      }));
     }
 
     // Determine path forward
@@ -310,7 +338,19 @@ export default function App() {
   const handleLoaderComplete = async () => {
     setIsProcessing(false);
     setIsCompleted(true);
-    await saveLeadToDatabase();
+    
+    let finalLead: LeadData;
+    try {
+      finalLead = await saveLeadToDatabase();
+      if (!finalLead || !finalLead.id) {
+        finalLead = { ...leadRef.current };
+      }
+    } catch (err) {
+      console.error('Error saving lead to database:', err);
+      finalLead = { ...leadRef.current };
+    }
+
+    const safeLead: LeadData = finalLead || leadRef.current || lead || ({} as LeadData);
     
     // Redirect to configured URL in Admin Panel (or default)
     let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
@@ -321,18 +361,61 @@ export default function App() {
       } catch (err) {}
     }
     const targetRedirect = config.redirectUrl || "https://contato.seracacau.com.br/";
-    window.location.href = targetRedirect;
+    
+    // Build search query parameters with complete lead details so external apps receive all data
+    const plainTextMessage = buildFormattedMessageText(safeLead);
+    const encodedWhatsappMessage = buildWhatsAppMessage(safeLead);
+
+    const urlParams = new URLSearchParams({
+      nome: safeLead.nome || '',
+      empresa: safeLead.empresa || '',
+      email: safeLead.email || '',
+      whatsapp: safeLead.whatsapp || safeLead.telefone || '',
+      telefone: safeLead.whatsapp || safeLead.telefone || '',
+      segmento: safeLead.segmento || '',
+      trabalhaComCacau: safeLead.trabalhaComCacau || '',
+      ja_trabalhou_com_cacau: safeLead.trabalhaComCacau || '',
+      faturamento: safeLead.faturamento || '',
+      leadScore: String(safeLead.leadScore || 0),
+      mensagem: plainTextMessage,
+      encodedMessage: encodedWhatsappMessage,
+      utm_source: safeLead.utmSource || '',
+      utm_medium: safeLead.utmMedium || safeLead.utmContent || '',
+      utm_campaign: safeLead.utmCampaign || ''
+    });
+
+    const redirectWithParams = `${targetRedirect}${targetRedirect.includes('?') ? '&' : '?'}${urlParams.toString()}`;
+    setComputedRedirectUrl(redirectWithParams);
+
+    // Guaranteed redirection attempting top window and current window
+    const doRedirect = () => {
+      try {
+        if (window.top && window.top !== window) {
+          window.top.location.href = redirectWithParams;
+        } else {
+          window.location.href = redirectWithParams;
+        }
+      } catch (e) {
+        window.location.href = redirectWithParams;
+      }
+    };
+
+    // Fast 600ms delay so user sees "Diagnóstico Concluído" before auto-redirect
+    setTimeout(doRedirect, 600);
   };
 
   // Save lead details and trigger webhooks
-  const saveLeadToDatabase = async () => {
+  const saveLeadToDatabase = async (): Promise<LeadData> => {
     const now = new Date();
     const dataCadastro = now.toLocaleDateString('pt-BR');
     const horaCadastro = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const score = calculateLeadScore(lead);
+    
+    // Use full up-to-date leadRef object
+    const currentLead = { ...leadRef.current };
+    const score = calculateLeadScore(currentLead);
 
     const finalLead: LeadData = {
-      ...lead,
+      ...currentLead,
       id: 'L-' + Math.floor(100000 + Math.random() * 900000),
       createdAt: now.toISOString(),
       status: 'Novo',
@@ -341,6 +424,7 @@ export default function App() {
       horaCadastro,
     };
 
+    leadRef.current = finalLead;
     setLead(finalLead);
 
     // Save locally
@@ -379,9 +463,13 @@ export default function App() {
       { id: Math.random().toString(), time: timestamp, action: 'Webhooks', status: 'warn' as const, message: `Iniciando disparo assíncrono para os servidores cadastrados.` }
     ];
 
-    // Fire off to webhooks and analytics trackers
-    await triggerWebhooks(finalLead);
-    trackLeadEvent(finalLead, config);
+    // Fire off to webhooks and analytics trackers asynchronously without blocking redirect flow
+    triggerWebhooks(finalLead).catch(e => console.error('Error triggering webhooks:', e));
+    try {
+      trackLeadEvent(finalLead, config);
+    } catch (e) {
+      console.error('Error tracking analytics events:', e);
+    }
 
     // Save to Supabase
     const isSupabaseConfigured = config.supabaseUrl && 
@@ -458,6 +546,7 @@ export default function App() {
     }
 
     localStorage.setItem('sensesales_integration_logs', JSON.stringify([...newLogs, ...existingLogs].slice(0, 50)));
+    return finalLead;
   };
 
   const trackLeadEvent = (finalLead: LeadData, config: IntegrationConfig) => {
@@ -541,8 +630,10 @@ export default function App() {
     const anuncio = finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030';
     const campanha = finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030';
 
-    // Sheet Lead formatted to match the exact Google Sheet columns:
-    // A: Data/hora | B: Nome | C: Nome da empresa | D: E-mail | E: Telefone / WhatsApp | F: Segmento | G: Já trabalhou com cacau | H: Faturamento | I: % percentual | J: ID | K: UTM Source | L: UTM Medium | M: UTM Campaign
+    const plainTextMessage = buildFormattedMessageText(finalLead);
+    const encodedWhatsappMessage = buildWhatsAppMessage(finalLead);
+
+    // Sheet Lead formatted to match the exact Google Sheet columns and Webhook payloads:
     const formattedLead = {
       // Direct keys matching Apps Script lead properties:
       nome: finalLead.nome || '',
@@ -554,12 +645,28 @@ export default function App() {
       trabalhaComCacau: finalLead.trabalhaComCacau || '',
       ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
       faturamento: finalLead.faturamento || '',
+      operacaoComercial: finalLead.operacaoComercial || '',
+      origemLeads: Array.isArray(finalLead.origemLeads) ? finalLead.origemLeads.join(', ') : (finalLead.origemLeads || ''),
+      crm: finalLead.crm || '',
+      desafioPrincipal: finalLead.desafioPrincipal || '',
+      momentoEmpresa: finalLead.momentoEmpresa || '',
+      investimentoMarketing: finalLead.investimentoMarketing || '',
+      equipeComercial: finalLead.equipeComercial || '',
+      prazoInicio: finalLead.prazoInicio || '',
       leadScore: rawScore,
       percentual: scoreFormatted,
       id: finalLead.id || '',
       utmSource: finalLead.utmSource || 'FB',
       utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
       utmCampaign: finalLead.utmCampaign || '',
+
+      // Formatted text message containing all responses answered in the form
+      mensagem: plainTextMessage,
+      message: plainTextMessage,
+      resumo: plainTextMessage,
+      resumoRespostas: plainTextMessage,
+      mensagemWhatsapp: encodedWhatsappMessage,
+      whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`,
 
       // Column name keys for backwards compatibility
       'Data/hora': dataHoraFormatted,
@@ -578,6 +685,7 @@ export default function App() {
       'Plataforma': finalLead.utmSource || 'FB',
       'Anuncio': finalLead.utmMedium || finalLead.utmContent || '',
       'Campanha': finalLead.utmCampaign || '',
+      'Mensagem': plainTextMessage,
       dataHora: dataHoraFormatted,
       data_hora: dataHoraFormatted
     };
@@ -603,6 +711,11 @@ export default function App() {
       timestamp: new Date().toISOString(),
       lead: formattedLead,
       ...formattedLead,
+      mensagem: plainTextMessage,
+      message: plainTextMessage,
+      resumo: plainTextMessage,
+      mensagemWhatsapp: encodedWhatsappMessage,
+      whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`,
       row: orderedRow,
       values: orderedRow
     };
@@ -640,15 +753,34 @@ export default function App() {
             empresa: finalLead.empresa || '',
             email: finalLead.email || '',
             whatsapp: finalLead.whatsapp || finalLead.telefone || '',
+            telefone: finalLead.whatsapp || finalLead.telefone || '',
             segmento: finalLead.segmento || '',
             trabalhaComCacau: finalLead.trabalhaComCacau || '',
+            ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
             faturamento: finalLead.faturamento || '',
+            operacaoComercial: finalLead.operacaoComercial || '',
+            origemLeads: Array.isArray(finalLead.origemLeads) ? finalLead.origemLeads.join(', ') : (finalLead.origemLeads || ''),
+            crm: finalLead.crm || '',
+            desafioPrincipal: finalLead.desafioPrincipal || '',
+            momentoEmpresa: finalLead.momentoEmpresa || '',
+            investimentoMarketing: finalLead.investimentoMarketing || '',
+            equipeComercial: finalLead.equipeComercial || '',
+            prazoInicio: finalLead.prazoInicio || '',
             leadScore: rawScore,
+            percentual: scoreFormatted,
             id: finalLead.id || '',
             utmSource: finalLead.utmSource || 'FB',
             utmMedium: finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030',
-            utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030'
-          }
+            utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030',
+            mensagem: plainTextMessage,
+            message: plainTextMessage,
+            resumo: plainTextMessage,
+            mensagemWhatsapp: encodedWhatsappMessage,
+            whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`
+          },
+          mensagem: plainTextMessage,
+          message: plainTextMessage,
+          resumo: plainTextMessage
         };
 
         await fetch(config.googleSheetsUrl, {
@@ -661,6 +793,8 @@ export default function App() {
         console.error('Error sending lead to Google Sheets:', e);
       }
     }
+
+    return finalLead;
   };
 
   // Move backward
@@ -674,9 +808,14 @@ export default function App() {
   // Handle choice selection with auto-advance!
   const handleOptionSelect = (option: string) => {
     if (currentQuestion) {
+      const activeVariable = currentQuestion.variable;
+      leadRef.current = {
+        ...leadRef.current,
+        [activeVariable]: option
+      };
       setLead(prev => ({
         ...prev,
-        [currentQuestion.variable]: option
+        [activeVariable]: option
       }));
       
       // Auto-advance with visual cue
@@ -694,8 +833,8 @@ export default function App() {
   const handleMultiSelectToggle = (option: string) => {
     if (currentQuestion) {
       const variable = currentQuestion.variable;
-      const currentSelected = Array.isArray(lead[variable]) 
-        ? (lead[variable] as string[]) 
+      const currentSelected = Array.isArray(leadRef.current[variable]) 
+        ? (leadRef.current[variable] as string[]) 
         : [];
       
       let updatedSelected: string[];
@@ -705,6 +844,10 @@ export default function App() {
         updatedSelected = [...currentSelected, option];
       }
 
+      leadRef.current = {
+        ...leadRef.current,
+        [variable]: updatedSelected
+      };
       setLead(prev => ({
         ...prev,
         [variable]: updatedSelected
@@ -728,7 +871,8 @@ export default function App() {
 
   // Opens target sales WhatsApp
   const handleSpeakWithSpecialist = () => {
-    const encodedMessage = buildWhatsAppMessage(lead);
+    const currentLead = leadRef.current?.nome ? leadRef.current : (lead || {} as LeadData);
+    const encodedMessage = buildWhatsAppMessage(currentLead);
     const link = `https://wa.me/5521972736030?text=${encodedMessage}`;
     
     // Log WhatsApp redirect audit
@@ -852,6 +996,7 @@ export default function App() {
 
   // Speaks with representative specifically about the scheduled time
   const handleSpeakWithSpecialistBooked = (date: string, hour: string, meetLink: string) => {
+    const currentLead = leadRef.current?.empresa ? leadRef.current : (lead || {} as LeadData);
     let formattedDate = date;
     if (date && date.includes('-')) {
       const parts = date.split('-');
@@ -872,7 +1017,7 @@ Aqui estão os detalhes da reunião:
 ⏰ Horário: ${hour}${hour.toLowerCase().includes('confirmado') ? '' : 'h (Horário de Brasília)'}
 🎥 Sala do Google Meet: ${meetLink}
 
-O Instagram da minha empresa é *${lead.empresa}*.
+O nome da minha empresa é *${currentLead.empresa || 'Não informada'}*.
 Gostaria de falar com o estrategista que me atenderá para adiantar alguns pontos!`;
 
     const encodedMessage = encodeURIComponent(baseMessage);
@@ -1373,7 +1518,7 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
                 <div className="w-2.5 h-2.5 bg-[#008060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
               <p className="text-[10px] font-mono text-gray-400">
-                Se você não for redirecionado em alguns segundos, <a href="https://contato.seracacau.com.br/" className="text-[#008060] font-semibold underline">clique aqui</a>.
+                Se você não for redirecionado em alguns segundos, <a href={computedRedirectUrl} className="text-[#008060] font-semibold underline">clique aqui</a>.
               </p>
             </motion.div>
           )}

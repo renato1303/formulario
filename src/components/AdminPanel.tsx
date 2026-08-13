@@ -299,10 +299,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         return true;
       })
       .sort((a, b) => {
-        const scoreA = a.leadScore ?? calculateLeadScore(a);
-        const scoreB = b.leadScore ?? calculateLeadScore(b);
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const scoreA = a?.leadScore ?? calculateLeadScore(a);
+        const scoreB = b?.leadScore ?? calculateLeadScore(b);
+        const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
 
         if (sortBy === 'score-desc') return scoreB - scoreA;
         if (sortBy === 'score-asc') return scoreA - scoreB;
@@ -374,7 +374,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     ];
 
     const rows = leads.map(l => {
-      const scoreVal = l.leadScore ?? calculateLeadScore(l);
+      const scoreVal = l?.leadScore ?? calculateLeadScore(l);
       const scoreFormatted = `${scoreVal}%`;
       const dateObj = l.createdAt ? new Date(l.createdAt) : new Date();
       const day = String(dateObj.getDate()).padStart(2, '0');
@@ -695,12 +695,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     className="w-full text-xs bg-white/5 border border-white/10 hover:border-white/15 focus:border-brand-green rounded-xl px-3 py-2.5 text-[#D4D4D8] focus:outline-none transition-all cursor-pointer appearance-none text-white font-sans"
                   >
                     <option value="all" className="bg-[#0D0D11] text-white">Todos Faturamentos</option>
-                    <option value="Até R$ 50 mil" className="bg-[#0D0D11] text-white">Até R$ 50k</option>
-                    <option value="R$ 50 mil e R$ 100 mil" className="bg-[#0D0D11] text-white">R$ 50k a R$ 100k</option>
-                    <option value="R$ 100 mil e R$ 300 mil" className="bg-[#0D0D11] text-white">R$ 100k a R$ 300k</option>
-                    <option value="R$ 300 mil e R$ 1 milhão" className="bg-[#0D0D11] text-white">R$ 300k a R$ 1M</option>
-                    <option value="Acima de R$ 1 milhão" className="bg-[#0D0D11] text-white">Acima de R$ 1M</option>
-                    <option value="Prefiro conversar" className="bg-[#0D0D11] text-white">Prefiro conversar</option>
+                    <option value="50 mil" className="bg-[#0D0D11] text-white">Até R$ 50k</option>
+                    <option value="50 mil e R$80mil" className="bg-[#0D0D11] text-white">Entre R$ 50k e R$ 80k</option>
+                    <option value="80mil e R$100mil" className="bg-[#0D0D11] text-white">Entre R$ 80k e R$ 100k</option>
+                    <option value="Acima de R$100mil" className="bg-[#0D0D11] text-white">Acima de R$ 100k</option>
                   </select>
                   <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-[#71717A] text-[10px]">▼</span>
                 </div>
@@ -758,7 +756,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                     </thead>
                     <tbody className="divide-y divide-white/5 text-xs text-[#E4E4E7]">
                       {filteredAndSortedLeads.map((lead, idx) => {
-                        const score = lead.leadScore ?? calculateLeadScore(lead);
+                        const score = lead?.leadScore ?? calculateLeadScore(lead);
                         // Score status colors
                         const scoreBg = score >= 70 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.05)]' : score >= 40 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20';
                         const phone = lead.whatsapp || lead.telefone || '';
@@ -918,10 +916,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div className="bg-white/2 border border-white/5 p-3 rounded-2xl text-center">
                           <span className="text-[9px] font-mono text-[#A1A1AA] uppercase tracking-wider block">Lead Score</span>
                           <span className={`text-xl font-bold font-display tracking-tight block mt-1 ${
-                            (selectedLead.leadScore ?? calculateLeadScore(selectedLead)) >= 70 ? 'text-emerald-400' :
-                            (selectedLead.leadScore ?? calculateLeadScore(selectedLead)) >= 40 ? 'text-amber-400' : 'text-rose-400'
+                            (selectedLead?.leadScore ?? calculateLeadScore(selectedLead)) >= 70 ? 'text-emerald-400' :
+                            (selectedLead?.leadScore ?? calculateLeadScore(selectedLead)) >= 40 ? 'text-amber-400' : 'text-rose-400'
                           }`}>
-                            {selectedLead.leadScore ?? calculateLeadScore(selectedLead)}%
+                            {selectedLead?.leadScore ?? calculateLeadScore(selectedLead)}%
                           </span>
                         </div>
                         
@@ -1236,26 +1234,27 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div className="mt-2 p-3 bg-[#000000] border border-white/10 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto select-all">
 {`function doPost(e) {
   try {
-    var jsonString = e.postData.contents;
-    var data = JSON.parse(jsonString);
-    var lead = data.lead;
+    var jsonString = e.postData ? e.postData.contents : "";
+    var data = jsonString ? JSON.parse(jsonString) : {};
+    var lead = data.lead || data || {};
     
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var leadScoreVal = (lead && lead.leadScore !== undefined && lead.leadScore !== null) ? lead.leadScore : ((lead && lead.lead_score !== undefined) ? lead.lead_score : 0);
     
     sheet.appendRow([
-      new Date(),                     // Coluna A: Data/Hora do envio
-      lead.nome || "",                // Coluna B: Nome
-      lead.empresa || "",             // Coluna C: Nome da empresa
-      lead.email || "",               // Coluna D: E-mail
-      lead.whatsapp || "",            // Coluna E: Telefone / WhatsApp
-      lead.segmento || "",            // Coluna F: Segmento
-      lead.trabalhaComCacau || "",    // Coluna G: Já trabalhou com cacau?
-      lead.faturamento || "",         // Coluna H: Faturamento
-      (lead.leadScore || 0) + "%",    // Coluna I: % percentual (Score)
-      lead.id || "",                  // Coluna J: ID único do lead
-      lead.utmSource || "",           // Coluna K: UTM Source (ex: facebook / google)
-      lead.utmMedium || "",           // Coluna L: UTM Medium (ex: cpc / stories)
-      lead.utmCampaign || ""          // Coluna M: UTM Campaign (ex: campanha-cacau-01)
+      new Date(),                             // Coluna A: Data/Hora do envio
+      lead.nome || lead.Nome || "",           // Coluna B: Nome
+      lead.empresa || lead.Empresa || "",     // Coluna C: Nome da empresa
+      lead.email || lead['E-mail'] || "",     // Coluna D: E-mail
+      lead.whatsapp || lead.telefone || lead.WhatsApp || "", // Coluna E: Telefone / WhatsApp
+      lead.segmento || lead.Segmento || "",   // Coluna F: Segmento
+      lead.trabalhaComCacau || lead.ja_trabalhou_com_cacau || "", // Coluna G: Já trabalhou com cacau?
+      lead.faturamento || lead.Faturamento || "", // Coluna H: Faturamento
+      leadScoreVal + "%",                     // Coluna I: % percentual (Score)
+      lead.id || lead.ID || "",               // Coluna J: ID único do lead
+      lead.utmSource || lead.utm_source || "",// Coluna K: UTM Source
+      lead.utmMedium || lead.utm_medium || "",// Coluna L: UTM Medium
+      lead.utmCampaign || lead.utm_campaign || "" // Coluna M: UTM Campaign
     ]);
     
     return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
