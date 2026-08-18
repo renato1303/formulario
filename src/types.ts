@@ -16,6 +16,12 @@ export interface LeadData {
   prazoInicio: string;
   lgpd: boolean;
   
+  // Geolocation / DDD intelligence
+  ddd?: string;
+  uf?: string;
+  estado?: string;
+  regiao?: string;
+  
   // Metadata & Tracking
   id: string;
   createdAt: string;

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { 
   QUESTIONS_LIST, INITIAL_LEAD_DATA, maskPhone, validateEmail, 
-  validatePhone, buildWhatsAppMessage, buildFormattedMessageText, DEFAULT_INTEGRATIONS_CONFIG, calculateLeadScore 
+  validatePhone, buildWhatsAppMessage, buildFormattedMessageText, DEFAULT_INTEGRATIONS_CONFIG, calculateLeadScore, getDDDInfo, getResolvedIntegrationsConfig 
 } from './data';
 import { LeadData, Question, IntegrationConfig, BookedMeeting } from './types';
 import { createClient } from '@supabase/supabase-js';
@@ -90,13 +90,7 @@ export default function App() {
 
   // Load and initialize marketing and analytics scripts (Meta Pixel, Google Analytics, GTM) on mount
   useEffect(() => {
-    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
-    const storedConfig = localStorage.getItem('sensesales_integrations_config');
-    if (storedConfig) {
-      try {
-        config = JSON.parse(storedConfig);
-      } catch (err) {}
-    }
+    const config: IntegrationConfig = getResolvedIntegrationsConfig();
 
     // 1. Initialize Meta Pixel
     if (config.metaPixelId && config.metaPixelId !== '1234567890') {
@@ -353,18 +347,13 @@ export default function App() {
     const safeLead: LeadData = finalLead || leadRef.current || lead || ({} as LeadData);
     
     // Redirect to configured URL in Admin Panel (or default)
-    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
-    const storedConfig = localStorage.getItem('sensesales_integrations_config');
-    if (storedConfig) {
-      try {
-        config = JSON.parse(storedConfig);
-      } catch (err) {}
-    }
+    const config: IntegrationConfig = getResolvedIntegrationsConfig();
     const targetRedirect = config.redirectUrl || "https://contato.seracacau.com.br/";
     
     // Build search query parameters with complete lead details so external apps receive all data
     const plainTextMessage = buildFormattedMessageText(safeLead);
     const encodedWhatsappMessage = buildWhatsAppMessage(safeLead);
+    const dddData = getDDDInfo(safeLead.whatsapp || safeLead.telefone || safeLead.ddd);
 
     const urlParams = new URLSearchParams({
       nome: safeLead.nome || '',
@@ -372,6 +361,10 @@ export default function App() {
       email: safeLead.email || '',
       whatsapp: safeLead.whatsapp || safeLead.telefone || '',
       telefone: safeLead.whatsapp || safeLead.telefone || '',
+      ddd: safeLead.ddd || dddData.ddd || '',
+      uf: safeLead.uf || dddData.uf || '',
+      estado: safeLead.estado || dddData.estado || '',
+      regiao: safeLead.regiao || dddData.regiao || '',
       segmento: safeLead.segmento || '',
       trabalhaComCacau: safeLead.trabalhaComCacau || '',
       ja_trabalhou_com_cacau: safeLead.trabalhaComCacau || '',
@@ -414,8 +407,15 @@ export default function App() {
     const currentLead = { ...leadRef.current };
     const score = calculateLeadScore(currentLead);
 
+    // Automatically detect DDD and Brazilian State (UF) from phone/WhatsApp
+    const dddInfo = getDDDInfo(currentLead.whatsapp || currentLead.telefone);
+
     const finalLead: LeadData = {
       ...currentLead,
+      ddd: currentLead.ddd || dddInfo.ddd,
+      uf: currentLead.uf || dddInfo.uf,
+      estado: currentLead.estado || dddInfo.estado,
+      regiao: currentLead.regiao || dddInfo.regiao,
       id: 'L-' + Math.floor(100000 + Math.random() * 900000),
       createdAt: now.toISOString(),
       status: 'Novo',
@@ -438,13 +438,7 @@ export default function App() {
     
     const timestamp = now.toLocaleTimeString();
     
-    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
-    const storedConfig = localStorage.getItem('sensesales_integrations_config');
-    if (storedConfig) {
-      try {
-        config = JSON.parse(storedConfig);
-      } catch (err) {}
-    }
+    const config: IntegrationConfig = getResolvedIntegrationsConfig();
 
     const hasSheets = config.googleSheetsUrl && config.googleSheetsUrl.startsWith('http');
 
@@ -610,13 +604,7 @@ export default function App() {
 
   const triggerWebhooks = async (finalLead: LeadData) => {
     // Collect settings
-    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
-    const storedConfig = localStorage.getItem('sensesales_integrations_config');
-    if (storedConfig) {
-      try {
-        config = JSON.parse(storedConfig);
-      } catch (err) {}
-    }
+    const config: IntegrationConfig = getResolvedIntegrationsConfig();
 
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
@@ -637,6 +625,14 @@ export default function App() {
     const plainTextMessage = buildFormattedMessageText(finalLead);
     const encodedWhatsappMessage = buildWhatsAppMessage(finalLead);
 
+    // Compute / fallback DDD intelligence
+    const dddData = getDDDInfo(finalLead.whatsapp || finalLead.telefone || finalLead.ddd);
+    const dddVal = finalLead.ddd || dddData.ddd || '';
+    const ufVal = finalLead.uf || dddData.uf || '';
+    const estadoVal = finalLead.estado || dddData.estado || '';
+    const regiaoVal = finalLead.regiao || dddData.regiao || '';
+    const estadoUfVal = estadoVal ? `${estadoVal} (${ufVal})` : (ufVal || '');
+
     // Sheet Lead formatted to match the exact Google Sheet columns and Webhook payloads:
     const formattedLead = {
       // Direct keys matching Apps Script lead properties:
@@ -645,6 +641,13 @@ export default function App() {
       email: finalLead.email || '',
       whatsapp: finalLead.whatsapp || finalLead.telefone || '',
       telefone: finalLead.whatsapp || finalLead.telefone || '',
+      ddd: dddVal,
+      uf: ufVal,
+      estado: estadoVal,
+      regiao: regiaoVal,
+      estado_uf: estadoUfVal,
+      estadoUf: estadoUfVal,
+      localizacao: estadoUfVal ? `${estadoUfVal}${regiaoVal ? ` - ${regiaoVal}` : ''}` : '',
       segmento: finalLead.segmento || '',
       trabalhaComCacau: finalLead.trabalhaComCacau || '',
       ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
@@ -678,6 +681,11 @@ export default function App() {
       'Nome da empresa': finalLead.empresa || '',
       'E-mail': finalLead.email || '',
       'Telefone': finalLead.whatsapp || finalLead.telefone || '',
+      'Estado': estadoVal,
+      'UF': ufVal,
+      'DDD': dddVal,
+      'Estado / UF': estadoUfVal,
+      'Região': regiaoVal,
       'Segmento': finalLead.segmento || '',
       'Já trabalhou com cacau': finalLead.trabalhaComCacau || '',
       'Faturamento': finalLead.faturamento || '',
@@ -700,6 +708,7 @@ export default function App() {
       finalLead.empresa || '',
       finalLead.email || '',
       finalLead.whatsapp || finalLead.telefone || '',
+      estadoVal ? `${estadoVal} (${ufVal})` : '',
       finalLead.segmento || '',
       finalLead.trabalhaComCacau || '',
       finalLead.faturamento || '',
@@ -715,6 +724,11 @@ export default function App() {
       timestamp: new Date().toISOString(),
       lead: formattedLead,
       ...formattedLead,
+      ddd: dddVal,
+      uf: ufVal,
+      estado: estadoVal,
+      regiao: regiaoVal,
+      estado_uf: estadoUfVal,
       mensagem: plainTextMessage,
       message: plainTextMessage,
       resumo: plainTextMessage,
@@ -762,6 +776,17 @@ export default function App() {
             email: finalLead.email || '',
             whatsapp: finalLead.whatsapp || finalLead.telefone || '',
             telefone: finalLead.whatsapp || finalLead.telefone || '',
+            ddd: dddVal,
+            uf: ufVal,
+            estado: estadoVal,
+            regiao: regiaoVal,
+            estado_uf: estadoUfVal,
+            estadoUf: estadoUfVal,
+            localizacao: estadoUfVal ? `${estadoUfVal}${regiaoVal ? ` - ${regiaoVal}` : ''}` : '',
+            Estado: estadoVal,
+            UF: ufVal,
+            DDD: dddVal,
+            'Estado / UF': estadoUfVal,
             segmento: finalLead.segmento || '',
             trabalhaComCacau: finalLead.trabalhaComCacau || '',
             ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
@@ -792,6 +817,17 @@ export default function App() {
           email: finalLead.email || '',
           whatsapp: finalLead.whatsapp || finalLead.telefone || '',
           telefone: finalLead.whatsapp || finalLead.telefone || '',
+          ddd: dddVal,
+          uf: ufVal,
+          estado: estadoVal,
+          regiao: regiaoVal,
+          estado_uf: estadoUfVal,
+          estadoUf: estadoUfVal,
+          Estado: estadoVal,
+          UF: ufVal,
+          DDD: dddVal,
+          'Estado / UF': estadoUfVal,
+          localizacao: estadoUfVal ? `${estadoUfVal}${regiaoVal ? ` - ${regiaoVal}` : ''}` : '',
           segmento: finalLead.segmento || '',
           trabalhaComCacau: finalLead.trabalhaComCacau || '',
           ja_trabalhou_com_cacau: finalLead.trabalhaComCacau || '',
@@ -973,13 +1009,7 @@ export default function App() {
     }
 
     // 5. Update supabase registry row if configured
-    let config: IntegrationConfig = DEFAULT_INTEGRATIONS_CONFIG;
-    const storedConfig = localStorage.getItem('sensesales_integrations_config');
-    if (storedConfig) {
-      try {
-        config = JSON.parse(storedConfig);
-      } catch (err) {}
-    }
+    const config: IntegrationConfig = getResolvedIntegrationsConfig();
 
     const isSupabaseConfigured = config.supabaseUrl && 
       config.supabaseUrl !== 'https://xyz.supabase.co' && 

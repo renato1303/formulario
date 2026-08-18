@@ -80,13 +80,30 @@ export const DEFAULT_INTEGRATIONS_CONFIG: IntegrationConfig = {
   metaPixelId: '1234567890',
   gaTrackingId: 'G-XXXXXXXXXX',
   gtmId: 'GTM-XXXXXXX',
-  googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbyJSBeAgSpjnOhdYfHUZbSCSVuAGjuxMrJPjzohtECTipLlDxZsdjWCRv9Rg-NrIu6h/exec',
+  googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbwWBZRJxFvksSyLijJhnkk29GOZcFOOIPTPx43K6ttM38sdL-E9XPEA_ZmSxl640mA/exec',
   calendlyUrl: 'https://calendly.com/comercial-seracacau/30min',
   redirectUrl: 'https://contato.seracacau.com.br/',
   adminPassword: 'sensesales@admin',
   thankYouVideoUrl: 'https://vimeo.com/1206543972',
   presenterName: 'nosso especialista',
 };
+
+export function getResolvedIntegrationsConfig(): IntegrationConfig {
+  let config: IntegrationConfig = { ...DEFAULT_INTEGRATIONS_CONFIG };
+  try {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('sensesales_integrations_config') : null;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Auto-migrate previous default URLs to the new active Google Sheets script
+      if (parsed.googleSheetsUrl && parsed.googleSheetsUrl.includes('AKfycbyJSBeAgSpjnOhdYfHUZbSCSVuAGjuxMrJPjzohtECTipLlDxZsdjWCRv9Rg-NrIu6h')) {
+        parsed.googleSheetsUrl = DEFAULT_INTEGRATIONS_CONFIG.googleSheetsUrl;
+        localStorage.setItem('sensesales_integrations_config', JSON.stringify(parsed));
+      }
+      config = { ...DEFAULT_INTEGRATIONS_CONFIG, ...parsed };
+    }
+  } catch (e) {}
+  return config;
+}
 
 export const INITIAL_LEAD_DATA: LeadData = {
   nome: '',
@@ -105,9 +122,191 @@ export const INITIAL_LEAD_DATA: LeadData = {
   equipeComercial: '',
   prazoInicio: '',
   lgpd: true,
+  ddd: '',
+  uf: '',
+  estado: '',
+  regiao: '',
   id: '',
   createdAt: '',
 };
+
+// Complete Brazilian DDD Mapping (67 DDDs across all 26 States + DF)
+export const BRAZIL_DDD_MAP: Record<string, { uf: string; estado: string; regiao: string }> = {
+  // São Paulo (SP)
+  '11': { uf: 'SP', estado: 'São Paulo', regiao: 'São Paulo (Capital e Região Metropolitana)' },
+  '12': { uf: 'SP', estado: 'São Paulo', regiao: 'São José dos Campos, Vale do Paraíba e Litoral Norte' },
+  '13': { uf: 'SP', estado: 'São Paulo', regiao: 'Santos, Baixada Santista e Vale do Ribeira' },
+  '14': { uf: 'SP', estado: 'São Paulo', regiao: 'Bauru, Marília, Jaú e Botucatu' },
+  '15': { uf: 'SP', estado: 'São Paulo', regiao: 'Sorocaba, Itapetininga e Região' },
+  '16': { uf: 'SP', estado: 'São Paulo', regiao: 'Ribeirão Preto, Franca, São Carlos e Araraquara' },
+  '17': { uf: 'SP', estado: 'São Paulo', regiao: 'São José do Rio Preto, Barretos e Catanduva' },
+  '18': { uf: 'SP', estado: 'São Paulo', regiao: 'Presidente Prudente, Araçatuba e Assis' },
+  '19': { uf: 'SP', estado: 'São Paulo', regiao: 'Campinas, Piracicaba, Limeira e Americana' },
+
+  // Rio de Janeiro (RJ)
+  '21': { uf: 'RJ', estado: 'Rio de Janeiro', regiao: 'Rio de Janeiro (Capital e Região Metropolitana)' },
+  '22': { uf: 'RJ', estado: 'Rio de Janeiro', regiao: 'Campos dos Goytacazes, Macaé e Cabo Frio' },
+  '24': { uf: 'RJ', estado: 'Rio de Janeiro', regiao: 'Petrópolis, Volta Redonda e Angra dos Reis' },
+
+  // Espírito Santo (ES)
+  '27': { uf: 'ES', estado: 'Espírito Santo', regiao: 'Vitória e Região Metropolitana / Norte do ES' },
+  '28': { uf: 'ES', estado: 'Espírito Santo', regiao: 'Cachoeiro de Itapemirim e Sul do ES' },
+
+  // Minas Gerais (MG)
+  '31': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Belo Horizonte e Região Metropolitana' },
+  '32': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Juiz de Fora, Barbacena e Zona da Mata' },
+  '33': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Governador Valadares, Teófilo Otoni e Leste de MG' },
+  '34': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Uberlândia, Uberaba e Triângulo Mineiro' },
+  '35': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Poços de Caldas, Pouso Alegre, Varginha e Sul de MG' },
+  '37': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Divinópolis, Itaúna e Centro-Oeste de MG' },
+  '38': { uf: 'MG', estado: 'Minas Gerais', regiao: 'Montes Claros, Diamantina e Norte de MG' },
+
+  // Paraná (PR)
+  '41': { uf: 'PR', estado: 'Paraná', regiao: 'Curitiba e Região Metropolitana / Litoral' },
+  '42': { uf: 'PR', estado: 'Paraná', regiao: 'Ponta Grossa, Guarapuava e Campos Gerais' },
+  '43': { uf: 'PR', estado: 'Paraná', regiao: 'Londrina, Apucarana e Norte do PR' },
+  '44': { uf: 'PR', estado: 'Paraná', regiao: 'Maringá, Campo Mourão e Noroeste do PR' },
+  '45': { uf: 'PR', estado: 'Paraná', regiao: 'Foz do Iguaçu, Cascavel, Toledo e Oeste do PR' },
+  '46': { uf: 'PR', estado: 'Paraná', regiao: 'Francisco Beltrão, Pato Branco e Sudoeste do PR' },
+
+  // Santa Catarina (SC)
+  '47': { uf: 'SC', estado: 'Santa Catarina', regiao: 'Joinville, Blumenau, Itajaí e Balneário Camboriú' },
+  '48': { uf: 'SC', estado: 'Santa Catarina', regiao: 'Florianópolis e Região Metropolitana / Criciúma' },
+  '49': { uf: 'SC', estado: 'Santa Catarina', regiao: 'Chapecó, Lages, Concórdia e Oeste Catarinense' },
+
+  // Rio Grande do Sul (RS)
+  '51': { uf: 'RS', estado: 'Rio Grande do Sul', regiao: 'Porto Alegre e Região Metropolitana' },
+  '53': { uf: 'RS', estado: 'Rio Grande do Sul', regiao: 'Pelotas, Rio Grande e Sul do RS' },
+  '54': { uf: 'RS', estado: 'Rio Grande do Sul', regiao: 'Caxias do Sul, Bento Gonçalves e Serra Gaúcha' },
+  '55': { uf: 'RS', estado: 'Rio Grande do Sul', regiao: 'Santa Maria, Uruguaiana e Noroeste do RS' },
+
+  // Distrito Federal / Goiás (DF / GO)
+  '61': { uf: 'DF', estado: 'Distrito Federal', regiao: 'Brasília e Região Integrada do Entorno' },
+  '62': { uf: 'GO', estado: 'Goiás', regiao: 'Goiânia, Anápolis e Centro-Norte de GO' },
+  '64': { uf: 'GO', estado: 'Goiás', regiao: 'Rio Verde, Itumbiara, Caldas Novas e Sul de GO' },
+
+  // Tocantins (TO)
+  '63': { uf: 'TO', estado: 'Tocantins', regiao: 'Palmas e todo o Estado do Tocantins' },
+
+  // Mato Grosso (MT)
+  '65': { uf: 'MT', estado: 'Mato Grosso', regiao: 'Cuiabá e Região Metropolitana / Oeste de MT' },
+  '66': { uf: 'MT', estado: 'Mato Grosso', regiao: 'Rondonópolis, Sinop, Sorriso e Norte/Leste de MT' },
+
+  // Mato Grosso do Sul (MS)
+  '67': { uf: 'MS', estado: 'Mato Grosso do Sul', regiao: 'Campo Grande, Dourados e todo o Estado do MS' },
+
+  // Acre (AC)
+  '68': { uf: 'AC', estado: 'Acre', regiao: 'Rio Branco e todo o Estado do Acre' },
+
+  // Rondônia (RO)
+  '69': { uf: 'RO', estado: 'Rondônia', regiao: 'Porto Velho e todo o Estado de Rondônia' },
+
+  // Bahia (BA)
+  '71': { uf: 'BA', estado: 'Bahia', regiao: 'Salvador e Região Metropolitana' },
+  '73': { uf: 'BA', estado: 'Bahia', regiao: 'Ilhéus, Itabuna, Porto Seguro e Sul da Bahia' },
+  '74': { uf: 'BA', estado: 'Bahia', regiao: 'Juazeiro, Jacobina e Norte da Bahia' },
+  '75': { uf: 'BA', estado: 'Bahia', regiao: 'Feira de Santana, Alagoinhas e Centro-Leste da Bahia' },
+  '77': { uf: 'BA', estado: 'Bahia', regiao: 'Vitória da Conquista, Barreiras e Oeste da Bahia' },
+
+  // Sergipe (SE)
+  '79': { uf: 'SE', estado: 'Sergipe', regiao: 'Aracaju e todo o Estado de Sergipe' },
+
+  // Pernambuco (PE)
+  '81': { uf: 'PE', estado: 'Pernambuco', regiao: 'Recife, Caruaru e Zona da Mata de PE' },
+  '87': { uf: 'PE', estado: 'Pernambuco', regiao: 'Petrolina, Garanhuns e Sertão de PE' },
+
+  // Alagoas (AL)
+  '82': { uf: 'AL', estado: 'Alagoas', regiao: 'Maceió, Arapiraca e todo o Estado de Alagoas' },
+
+  // Paraíba (PB)
+  '83': { uf: 'PB', estado: 'Paraíba', regiao: 'João Pessoa, Campina Grande e todo o Estado da PB' },
+
+  // Rio Grande do Norte (RN)
+  '84': { uf: 'RN', estado: 'Rio Grande do Norte', regiao: 'Natal, Mossoró e todo o Estado do RN' },
+
+  // Ceará (CE)
+  '85': { uf: 'CE', estado: 'Ceará', regiao: 'Fortaleza e Região Metropolitana' },
+  '88': { uf: 'CE', estado: 'Ceará', regiao: 'Juazeiro do Norte, Sobral e Interior do CE' },
+
+  // Piauí (PI)
+  '86': { uf: 'PI', estado: 'Piauí', regiao: 'Teresina, Parnaíba e Norte do PI' },
+  '89': { uf: 'PI', estado: 'Piauí', regiao: 'Picos, Floriano e Sul do PI' },
+
+  // Pará (PA)
+  '91': { uf: 'PA', estado: 'Pará', regiao: 'Belém e Região Metropolitana do PA' },
+  '93': { uf: 'PA', estado: 'Pará', regiao: 'Santarém, Altamira e Oeste do PA' },
+  '94': { uf: 'PA', estado: 'Pará', regiao: 'Marabá, Parauapebas e Sul do PA' },
+
+  // Amazonas (AM)
+  '92': { uf: 'AM', estado: 'Amazonas', regiao: 'Manaus e Região Metropolitana de Manaus' },
+  '97': { uf: 'AM', estado: 'Amazonas', regiao: 'Interior do Amazonas e Médio/Alto Solimões' },
+
+  // Roraima (RR)
+  '95': { uf: 'RR', estado: 'Roraima', regiao: 'Boa Vista e todo o Estado de Roraima' },
+
+  // Amapá (AP)
+  '96': { uf: 'AP', estado: 'Amapá', regiao: 'Macapá e todo o Estado do Amapá' },
+
+  // Maranhão (MA)
+  '98': { uf: 'MA', estado: 'Maranhão', regiao: 'São Luís e Norte do Maranhão' },
+  '99': { uf: 'MA', estado: 'Maranhão', regiao: 'Imperatriz, Caxias e Sul do Maranhão' },
+};
+
+export interface DDDInfo {
+  ddd: string;
+  uf: string;
+  estado: string;
+  estadoUf: string;
+  regiao: string;
+  isIdentified: boolean;
+}
+
+// Automatically extract DDD and locate Brazilian State (UF)
+export function getDDDInfo(phoneOrDdd?: string): DDDInfo {
+  if (!phoneOrDdd) {
+    return {
+      ddd: '',
+      uf: '',
+      estado: '',
+      estadoUf: '',
+      regiao: '',
+      isIdentified: false,
+    };
+  }
+
+  let digits = String(phoneOrDdd).replace(/\D/g, '');
+
+  // Strip international country code if +55 was included
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith('0') && digits.length >= 11) {
+    // Strip leading 0 (e.g. 015...)
+    digits = digits.slice(1);
+  }
+
+  const dddCandidate = digits.slice(0, 2);
+  const match = BRAZIL_DDD_MAP[dddCandidate];
+
+  if (match) {
+    return {
+      ddd: dddCandidate,
+      uf: match.uf,
+      estado: match.estado,
+      estadoUf: `${match.estado} (${match.uf})`,
+      regiao: match.regiao,
+      isIdentified: true,
+    };
+  }
+
+  return {
+    ddd: dddCandidate || '',
+    uf: '',
+    estado: '',
+    estadoUf: '',
+    regiao: '',
+    isIdentified: false,
+  };
+}
 
 // Mask WhatsApp input to (XX) XXXXX-XXXX
 export function maskPhone(value: string): string {
@@ -143,6 +342,12 @@ export function buildFormattedMessageText(lead?: LeadData | Partial<LeadData> | 
   const phone = lead.whatsapp || lead.telefone || 'Não informado';
   const trabalhaCacau = lead.trabalhaComCacau || 'Não informado';
 
+  // Automatically calculate / retrieve DDD location
+  const dddInfo = getDDDInfo(phone || lead.ddd);
+  const estadoLabel = lead.estado 
+    ? `${lead.estado}${lead.uf ? ` (${lead.uf})` : ''}` 
+    : (dddInfo.isIdentified ? `${dddInfo.estado} (${dddInfo.uf})` : '');
+
   const origens = Array.isArray(lead.origemLeads)
     ? lead.origemLeads.filter(Boolean).join(', ')
     : (lead.origemLeads || '');
@@ -157,10 +362,15 @@ export function buildFormattedMessageText(lead?: LeadData | Partial<LeadData> | 
     `• Empresa: ${lead.empresa || 'Não informada'}`,
     `• E-mail: ${lead.email || 'Não informado'}`,
     `• WhatsApp / Telefone: ${phone}`,
-    `• Segmento da Empresa: ${lead.segmento || 'Não informado'}`,
-    `• Já trabalha com cacau?: ${trabalhaCacau}`,
-    `• Faturamento médio mensal: ${lead.faturamento || 'Não informado'}`
   ];
+
+  if (estadoLabel) {
+    lines.push(`• Estado / Localização: ${estadoLabel}${dddInfo.regiao ? ` - ${dddInfo.regiao}` : ''}`);
+  }
+
+  lines.push(`• Segmento da Empresa: ${lead.segmento || 'Não informado'}`);
+  lines.push(`• Já trabalha com cacau?: ${trabalhaCacau}`);
+  lines.push(`• Faturamento médio mensal: ${lead.faturamento || 'Não informado'}`);
 
   if (lead.operacaoComercial) {
     lines.push(`• Operação Comercial: ${lead.operacaoComercial}`);
