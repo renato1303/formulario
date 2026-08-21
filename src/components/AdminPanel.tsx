@@ -464,9 +464,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       const ddd = l.ddd || dddInfo.ddd || '';
       const regiao = l.regiao || dddInfo.regiao || '';
 
-      const plataforma = l.utmSource || 'FB';
-      const anuncio = l.utmMedium || l.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030';
-      const campanha = l.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030';
+      const plataforma = l.utmSource || '';
+      const anuncio = l.utmMedium || l.utmContent || '';
+      const campanha = l.utmCampaign || '';
 
       return [
         dataHoraStr,

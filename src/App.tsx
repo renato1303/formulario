@@ -355,7 +355,7 @@ export default function App() {
     const encodedWhatsappMessage = buildWhatsAppMessage(safeLead);
     const dddData = getDDDInfo(safeLead.whatsapp || safeLead.telefone || safeLead.ddd);
 
-    const urlParams = new URLSearchParams({
+    const paramObj: Record<string, string> = {
       nome: safeLead.nome || '',
       empresa: safeLead.empresa || '',
       email: safeLead.email || '',
@@ -371,11 +371,14 @@ export default function App() {
       faturamento: safeLead.faturamento || '',
       leadScore: String(safeLead.leadScore || 0),
       mensagem: plainTextMessage,
-      encodedMessage: encodedWhatsappMessage,
-      utm_source: safeLead.utmSource || '',
-      utm_medium: safeLead.utmMedium || safeLead.utmContent || '',
-      utm_campaign: safeLead.utmCampaign || ''
-    });
+      encodedMessage: encodedWhatsappMessage
+    };
+
+    if (safeLead.utmSource) paramObj.utm_source = safeLead.utmSource;
+    if (safeLead.utmMedium || safeLead.utmContent) paramObj.utm_medium = safeLead.utmMedium || safeLead.utmContent || '';
+    if (safeLead.utmCampaign) paramObj.utm_campaign = safeLead.utmCampaign;
+
+    const urlParams = new URLSearchParams(paramObj);
 
     const redirectWithParams = `${targetRedirect}${targetRedirect.includes('?') ? '&' : '?'}${urlParams.toString()}`;
     setComputedRedirectUrl(redirectWithParams);
@@ -618,9 +621,9 @@ export default function App() {
     const rawScore = finalLead.leadScore !== undefined ? finalLead.leadScore : calculateLeadScore(finalLead);
     const scoreFormatted = `${rawScore}%`;
 
-    const plataforma = finalLead.utmSource || 'FB';
-    const anuncio = finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030';
-    const campanha = finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030';
+    const plataforma = finalLead.utmSource || '';
+    const anuncio = finalLead.utmMedium || finalLead.utmContent || '';
+    const campanha = finalLead.utmCampaign || '';
 
     const plainTextMessage = buildFormattedMessageText(finalLead);
     const encodedWhatsappMessage = buildWhatsAppMessage(finalLead);
@@ -663,7 +666,7 @@ export default function App() {
       leadScore: rawScore,
       percentual: scoreFormatted,
       id: finalLead.id || '',
-      utmSource: finalLead.utmSource || 'FB',
+      utmSource: finalLead.utmSource || '',
       utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
       utmCampaign: finalLead.utmCampaign || '',
 
@@ -691,12 +694,12 @@ export default function App() {
       'Faturamento': finalLead.faturamento || '',
       '% percentual': scoreFormatted,
       'ID': finalLead.id || '',
-      'UTM Source': finalLead.utmSource || 'FB',
+      'UTM Source': finalLead.utmSource || '',
       'UTM Medium': finalLead.utmMedium || finalLead.utmContent || '',
       'UTM Campaign': finalLead.utmCampaign || '',
-      'Plataforma': finalLead.utmSource || 'FB',
-      'Anuncio': finalLead.utmMedium || finalLead.utmContent || '',
-      'Campanha': finalLead.utmCampaign || '',
+      'Plataforma': plataforma,
+      'Anuncio': anuncio,
+      'Campanha': campanha,
       'Mensagem': plainTextMessage,
       dataHora: dataHoraFormatted,
       data_hora: dataHoraFormatted
@@ -714,7 +717,7 @@ export default function App() {
       finalLead.faturamento || '',
       scoreFormatted,
       finalLead.id || '',
-      finalLead.utmSource || 'FB',
+      finalLead.utmSource || '',
       finalLead.utmMedium || finalLead.utmContent || '',
       finalLead.utmCampaign || ''
     ];
@@ -802,9 +805,9 @@ export default function App() {
             leadScore: rawScore,
             percentual: scoreFormatted,
             id: finalLead.id || '',
-            utmSource: finalLead.utmSource || 'FB',
-            utmMedium: finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030',
-            utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030',
+            utmSource: finalLead.utmSource || '',
+            utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+            utmCampaign: finalLead.utmCampaign || '',
             mensagem: plainTextMessage,
             message: plainTextMessage,
             resumo: plainTextMessage,
@@ -843,9 +846,9 @@ export default function App() {
           leadScore: rawScore,
           percentual: scoreFormatted,
           id: finalLead.id || '',
-          utmSource: finalLead.utmSource || 'FB',
-          utmMedium: finalLead.utmMedium || finalLead.utmContent || 'CONJ01 - [INTERESSES] - PUB [SUL/SUDEST]|120249985914460030',
-          utmCampaign: finalLead.utmCampaign || 'CAM-01 [CADASTRO FORMS]|120249985914450030',
+          utmSource: finalLead.utmSource || '',
+          utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+          utmCampaign: finalLead.utmCampaign || '',
           mensagem: plainTextMessage,
           message: plainTextMessage,
           resumo: plainTextMessage,
