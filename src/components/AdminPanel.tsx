@@ -417,6 +417,32 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     }
   };
 
+  const handleTestPixel = () => {
+    if ((window as any).fbq) {
+      try {
+        (window as any).fbq('track', 'Lead', {
+          content_name: 'Diagnóstico Comercial (Teste Manual Painel)',
+          value: 100,
+          currency: 'BRL',
+          predicted_score: 100,
+          status: 'test'
+        });
+        (window as any).fbq('track', 'CompleteRegistration', {
+          content_name: 'Diagnóstico Concluído (Teste Manual)',
+          currency: 'BRL',
+          value: 100
+        });
+        addLog('Meta Pixel', 'success', `Evento de teste ("Lead" e "CompleteRegistration") disparado com sucesso via fbq.`);
+        alert('Evento de teste do Meta Pixel disparado com sucesso! Verifique a extensão Meta Pixel Helper ou a aba Network do navegador.');
+      } catch (err: any) {
+        addLog('Meta Pixel', 'error', `Erro ao disparar evento de teste: ${err.message}`);
+      }
+    } else {
+      addLog('Meta Pixel', 'warn', `Objeto window.fbq não encontrado.`);
+      alert('Aviso: O script do Meta Pixel ainda não carregou ou está bloqueado por um AdBlocker.');
+    }
+  };
+
   const exportCSV = () => {
     if (leads.length === 0) {
       alert('Nenhum lead disponível para exportação.');
@@ -1346,7 +1372,17 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wide mb-1">META PIXEL ID</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase tracking-wide">META PIXEL ID</label>
+                        <button
+                          type="button"
+                          onClick={handleTestPixel}
+                          className="flex items-center gap-1 text-[10px] font-mono text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 px-2 py-0.5 rounded transition-all cursor-pointer"
+                        >
+                          <Play className="h-2.5 w-2.5" />
+                          <span>Testar Pixel</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={integrationConfig.metaPixelId}

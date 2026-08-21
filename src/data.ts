@@ -77,7 +77,7 @@ export const DEFAULT_INTEGRATIONS_CONFIG: IntegrationConfig = {
   n8nUrl: 'https://n8n.suaempresa.com/webhook/sense-sales',
   supabaseUrl: 'https://xyz.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9...',
-  metaPixelId: '1234567890',
+  metaPixelId: '1378981757464908',
   gaTrackingId: 'G-XXXXXXXXXX',
   gtmId: 'GTM-XXXXXXX',
   googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbwWBZRJxFvksSyLijJhnkk29GOZcFOOIPTPx43K6ttM38sdL-E9XPEA_ZmSxl640mA/exec',
@@ -97,8 +97,12 @@ export function getResolvedIntegrationsConfig(): IntegrationConfig {
       // Auto-migrate previous default URLs to the new active Google Sheets script
       if (parsed.googleSheetsUrl && parsed.googleSheetsUrl.includes('AKfycbyJSBeAgSpjnOhdYfHUZbSCSVuAGjuxMrJPjzohtECTipLlDxZsdjWCRv9Rg-NrIu6h')) {
         parsed.googleSheetsUrl = DEFAULT_INTEGRATIONS_CONFIG.googleSheetsUrl;
-        localStorage.setItem('sensesales_integrations_config', JSON.stringify(parsed));
       }
+      // Auto-migrate placeholder meta pixel ID
+      if (!parsed.metaPixelId || parsed.metaPixelId === '1234567890') {
+        parsed.metaPixelId = DEFAULT_INTEGRATIONS_CONFIG.metaPixelId;
+      }
+      localStorage.setItem('sensesales_integrations_config', JSON.stringify(parsed));
       config = { ...DEFAULT_INTEGRATIONS_CONFIG, ...parsed };
     }
   } catch (e) {}

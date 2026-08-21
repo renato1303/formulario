@@ -51,11 +51,19 @@ export default function ThankYouPage({
         }
 
         // Track conversion event on thank you page land
-        if (config.metaPixelId && config.metaPixelId !== '1234567890') {
-          if ((window as any).fbq) {
+        if ((window as any).fbq) {
+          try {
             (window as any).fbq('track', 'CompleteRegistration', {
-              content_name: 'Quiz Completion Obrigado'
+              content_name: 'Quiz Completion Obrigado',
+              currency: 'BRL',
+              status: true
             });
+            (window as any).fbq('track', 'Lead', {
+              content_name: 'Diagnóstico Comercial Obrigado',
+              currency: 'BRL'
+            });
+          } catch (e) {
+            console.error('Error tracking Meta Pixel in ThankYouPage:', e);
           }
         }
         if (config.gaTrackingId && config.gaTrackingId !== 'G-XXXXXXXXXX') {

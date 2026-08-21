@@ -93,32 +93,33 @@ export default function App() {
     const config: IntegrationConfig = getResolvedIntegrationsConfig();
 
     // 1. Initialize Meta Pixel
-    if (config.metaPixelId && config.metaPixelId !== '1234567890') {
-      try {
-        // Dynamic script injection for Facebook Pixel
-        (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
-          if (f.fbq) return;
-          n = f.fbq = function() {
-            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
-          };
-          if (!f._fbq) f._fbq = n;
-          n.push = n;
-          n.loaded = !0;
-          n.version = '2.0';
-          n.queue = [];
-          t = b.createElement(e);
-          t.async = !0;
-          t.src = v;
-          s = b.getElementsByTagName(e)[0];
-          s.parentNode.insertBefore(t, s);
-        })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+    const pixelId = config.metaPixelId || '1378981757464908';
+    try {
+      // Dynamic script injection for Facebook Pixel if not already present from index.html
+      (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
+        if (f.fbq) return;
+        n = f.fbq = function() {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-        (window as any).fbq('init', config.metaPixelId);
+      if ((window as any).fbq) {
+        (window as any).fbq('init', pixelId);
         (window as any).fbq('track', 'PageView');
-        console.log('Meta Pixel initialized with ID:', config.metaPixelId);
-      } catch (e) {
-        console.error('Failed to initialize Meta Pixel:', e);
+        console.log('Meta Pixel initialized with ID:', pixelId);
       }
+    } catch (e) {
+      console.error('Failed to initialize Meta Pixel:', e);
     }
 
     // 2. Initialize Google Analytics
@@ -460,16 +461,18 @@ export default function App() {
       { id: Math.random().toString(), time: timestamp, action: 'Webhooks', status: 'warn' as const, message: `Iniciando disparo assíncrono para os servidores cadastrados.` }
     ];
 
-    // Fire off to webhooks and analytics trackers
-    try {
-      await triggerWebhooks(finalLead);
-    } catch (e) {
-      console.error('Error triggering webhooks:', e);
-    }
+    // Track analytics/pixel events immediately (synchronously) before slow external webhooks
     try {
       trackLeadEvent(finalLead, config);
     } catch (e) {
       console.error('Error tracking analytics events:', e);
+    }
+
+    // Fire off to webhooks
+    try {
+      await triggerWebhooks(finalLead);
+    } catch (e) {
+      console.error('Error triggering webhooks:', e);
     }
 
     // Save to Supabase
@@ -551,20 +554,43 @@ export default function App() {
   };
 
   const trackLeadEvent = (finalLead: LeadData, config: IntegrationConfig) => {
-    // 1. Track Meta Pixel
-    if (config.metaPixelId && config.metaPixelId !== '1234567890') {
-      if ((window as any).fbq) {
-        try {
-          (window as any).fbq('track', 'Lead', {
-            content_name: finalLead.nome,
-            value: finalLead.leadScore,
-            currency: 'BRL',
-            predicted_score: finalLead.leadScore
-          });
-          console.log('Meta Pixel Event "Lead" tracked.');
-        } catch (e) {
-          console.error('Error tracking Meta Pixel:', e);
-        }
+    // 1. Track Meta Pixel (Lead, CompleteRegistration, DiagnosticoConcluido)
+    if ((window as any).fbq) {
+      try {
+        const leadScoreVal = finalLead.leadScore !== undefined ? finalLead.leadScore : 100;
+        
+        // Standard Lead Event
+        (window as any).fbq('track', 'Lead', {
+          content_name: 'Diagnóstico Comercial Será Cacau',
+          content_category: finalLead.segmento || 'Cacau',
+          value: leadScoreVal,
+          currency: 'BRL',
+          predicted_score: leadScoreVal,
+          lead_id: finalLead.id || '',
+          status: 'completed'
+        });
+
+        // Standard CompleteRegistration Event (broad conversion compatibility)
+        (window as any).fbq('track', 'CompleteRegistration', {
+          content_name: 'Diagnóstico Concluído',
+          currency: 'BRL',
+          value: leadScoreVal,
+          status: true
+        });
+
+        // Custom Event for detailed event breakdown in Meta Events Manager
+        (window as any).fbq('trackCustom', 'DiagnosticoConcluido', {
+          nome: finalLead.nome,
+          empresa: finalLead.empresa,
+          segmento: finalLead.segmento,
+          faturamento: finalLead.faturamento,
+          score: leadScoreVal,
+          id: finalLead.id
+        });
+
+        console.log('Meta Pixel Conversion Events ("Lead" & "CompleteRegistration") tracked successfully for lead:', finalLead.id);
+      } catch (e) {
+        console.error('Error tracking Meta Pixel:', e);
       }
     }
 
