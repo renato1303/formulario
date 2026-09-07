@@ -114,9 +114,23 @@ export default function App() {
       })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
       if ((window as any).fbq) {
-        (window as any).fbq('init', pixelId);
-        (window as any).fbq('track', 'PageView');
-        console.log('Meta Pixel initialized with ID:', pixelId);
+        const isAlreadyInitialized = (window as any).__metaPixelInitializedId === pixelId;
+        const isPageViewAlreadyTracked = (window as any).__metaPixelPageViewTracked;
+        const isAdmin = window.location.pathname.includes('/admin') || window.location.hash.includes('admin');
+
+        // Only init if not already initialized with this exact Pixel ID
+        if (!isAlreadyInitialized) {
+          (window as any).fbq('init', pixelId);
+          (window as any).__metaPixelInitializedId = pixelId;
+          console.log('Meta Pixel initialized with ID:', pixelId);
+        }
+
+        // Only fire PageView once per page session, and never inside the admin panel
+        if (!isPageViewAlreadyTracked && !isAdmin) {
+          (window as any).fbq('track', 'PageView');
+          (window as any).__metaPixelPageViewTracked = true;
+          console.log('Meta Pixel PageView tracked for:', pixelId);
+        }
       }
     } catch (e) {
       console.error('Failed to initialize Meta Pixel:', e);

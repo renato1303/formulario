@@ -15,7 +15,11 @@ t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '1378981757464908');
-fbq('track', 'PageView');
+window.__metaPixelInitializedId = '1378981757464908';
+if (!window.location.pathname.includes('/admin') && !window.location.hash.includes('admin')) {
+  fbq('track', 'PageView');
+  window.__metaPixelPageViewTracked = true;
+}
 </script>
 <!-- End Meta Pixel Code -->
 <script type="text/javascript">
