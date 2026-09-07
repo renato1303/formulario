@@ -298,8 +298,13 @@ export default function ThankYouPage({
         {/* Glow decoration */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#008060]/5 rounded-full filter blur-3xl -z-10 pointer-events-none" />
 
-        {/* Selo/tag (topo) */}
-        <div className="flex justify-center">
+        {/* Logo and Selo/tag (topo) */}
+        <div className="flex flex-col items-center justify-center gap-3.5">
+          <img 
+            src="/logo.png" 
+            alt="Será Cacau" 
+            className="h-10 sm:h-12 w-auto object-contain select-none"
+          />
           <div className="inline-flex items-center gap-1.5 bg-[#008060]/10 border border-[#008060]/20 px-3.5 py-1.5 rounded-full text-[10px] sm:text-xs font-mono text-[#008060] uppercase tracking-wider font-bold">
             <Check className="w-3.5 h-3.5 stroke-[3px]" />
             <span>Aplicação recebida</span>

@@ -34,6 +34,7 @@ export default function LeadSummary({ lead }: SummaryProps) {
         
         <div className="flex items-center justify-between border-b border-gray-150 pb-3 mb-4">
           <h3 className="font-display font-medium text-xs tracking-widest text-gray-500 uppercase flex items-center gap-2">
+            <img src="/logo-icon.png" alt="" className="w-4 h-4 object-contain" />
             <span>DIAGNÓSTICO E QUALIFICAÇÃO SERÁ CACAU</span>
           </h3>
           <span className="text-[10px] font-mono text-[#14B8A6] bg-[#14B8A6]/10 border border-[#14B8A6]/20 rounded px-2 py-0.5 font-bold">

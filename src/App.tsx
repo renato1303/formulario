@@ -1185,9 +1185,14 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
             transition={{ duration: 0.4 }}
             className="w-full max-w-md p-8 md:p-10 glass-panel rounded-[32px] border border-gray-200 shadow-sm relative z-10 space-y-6 text-left"
           >
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-[#008060]/10 border border-[#008060]/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-5 h-5 text-[#008060]" />
+            <div className="text-center space-y-3">
+              <img 
+                src="/logo.png" 
+                alt="Será Cacau" 
+                className="h-11 w-auto object-contain mx-auto mb-2 select-none"
+              />
+              <div className="w-10 h-10 bg-[#008060]/10 border border-[#008060]/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Lock className="w-4 h-4 text-[#008060]" />
               </div>
               <h1 className="font-display font-bold text-2xl text-gray-900 tracking-tight">Painel do Integrador</h1>
               <p className="text-xs text-gray-500">
@@ -1251,6 +1256,12 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
       <div className="min-h-screen bg-[#FAFAF8] text-gray-900 flex flex-col font-sans">
         <header className="border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <img 
+              src="/logo.png" 
+              alt="Será Cacau" 
+              className="h-8 sm:h-9 w-auto object-contain select-none"
+            />
+            <div className="h-6 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
             <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center border border-[#14B8A6]/20">
               <Lock className="w-4 h-4 text-[#14B8A6]" />
             </div>
@@ -1287,7 +1298,12 @@ Gostaria de falar com o estrategista que me atenderá para adiantar alguns ponto
       <header className="w-full max-w-4xl mx-auto z-10 pt-2 pb-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold tracking-[0.15em] uppercase text-gray-900 font-display">Será Cacau</span>
+            <img 
+              src="/logo.png" 
+              alt="Será Cacau" 
+              className="h-9 sm:h-12 w-auto object-contain select-none"
+              id="header-logo"
+            />
           </div>
 
           <div className="flex items-center gap-4">
