@@ -118,6 +118,9 @@ export default function App() {
         const isPageViewAlreadyTracked = (window as any).__metaPixelPageViewTracked;
         const isAdmin = window.location.pathname.includes('/admin') || window.location.hash.includes('admin');
 
+        // Always disable autoConfig (automatic event tracking / microdata scraping)
+        (window as any).fbq('set', 'autoConfig', false, pixelId);
+
         // Only init if not already initialized with this exact Pixel ID
         if (!isAlreadyInitialized) {
           (window as any).fbq('init', pixelId);
