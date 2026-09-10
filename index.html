@@ -8,16 +8,79 @@
     <link rel="apple-touch-icon" href="/favicon.png" />
     <!-- Meta Pixel Code -->
 <script>
+(function() {
+  // 1. Intercept fbq calls to block fake custom PageView events from Event Setup Tool
+  var origFbq = window.fbq;
+  function shouldBlockParam(str) {
+    if (!str || typeof str !== 'string') return false;
+    return str.indexOf('ob3_plugin-set') !== -1 || str.indexOf('cs_est') !== -1;
+  }
+
+  // 2. Intercept browser network transports targeting facebook.com/tr with ob3_plugin-set or cs_est
+  if (navigator && navigator.sendBeacon) {
+    var origSendBeacon = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = function(url, data) {
+      var urlStr = String(url || '');
+      var dataStr = typeof data === 'string' ? data : '';
+      if (urlStr.indexOf('facebook.com/tr') !== -1 || urlStr.indexOf('connect.facebook.net') !== -1) {
+        if (shouldBlockParam(urlStr) || shouldBlockParam(dataStr)) {
+          return true; // silently block phantom EST event
+        }
+      }
+      return origSendBeacon(url, data);
+    };
+  }
+
+  if (window.fetch) {
+    var origFetch = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+      var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      var bodyStr = (init && init.body && typeof init.body === 'string') ? init.body : '';
+      if (url && url.indexOf('facebook.com/tr') !== -1) {
+        if (shouldBlockParam(url) || shouldBlockParam(bodyStr)) {
+          return Promise.resolve(new Response('', { status: 200 }));
+        }
+      }
+      return origFetch(input, init);
+    };
+  }
+
+  var imgProto = HTMLImageElement.prototype;
+  var desc = Object.getOwnPropertyDescriptor(imgProto, 'src');
+  if (desc && desc.set) {
+    var origSet = desc.set;
+    Object.defineProperty(imgProto, 'src', {
+      set: function(val) {
+        var str = String(val || '');
+        if (str.indexOf('facebook.com/tr') !== -1 && shouldBlockParam(str)) {
+          return; // silently block phantom EST image ping
+        }
+        return origSet.call(this, val);
+      },
+      get: desc.get,
+      configurable: true,
+      enumerable: true
+    });
+  }
+})();
+
 !function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+{if(f.fbq)return;n=f.fbq=function(){
+  // Prevent Event Setup Tool from calling trackCustom('PageView')
+  if (arguments[0] === 'trackCustom' && arguments[1] === 'PageView') {
+    return;
+  }
+  n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)
+};
 if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
 n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
 fbq('set', 'autoConfig', false, '1378981757464908');
-fbq('init', '1378981757464908');
+fbq('set', 'smartSetup', false, '1378981757464908');
+fbq('set', 'codeless', 'false', '1378981757464908');
+fbq('init', '1378981757464908', {}, { codeless: 'false' });
 window.__metaPixelInitializedId = '1378981757464908';
 if (!window.location.pathname.includes('/admin') && !window.location.hash.includes('admin')) {
   fbq('track', 'PageView');

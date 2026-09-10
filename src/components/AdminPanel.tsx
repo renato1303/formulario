@@ -402,9 +402,15 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             faturamento: "R$ 300 mil a R$ 1 milhão",
             leadScore: 95,
             id: "TEST-" + Math.floor(1000 + Math.random() * 9000),
-            utmSource: "PAINEL_ADMIN_TEST",
-            utmMedium: "TESTE_CONEXAO",
-            utmCampaign: "TESTE_SHEETS"
+            utmSource: "facebook",
+            utmMedium: "CONJUNTO_TESTE_ADSET",
+            utmCampaign: "CAMPANHA_TESTE_NAME",
+            utmContent: "ANUNCIO_CRIATIVO_01",
+            utmTerm: "Instagram_Stories",
+            anuncio: "ANUNCIO_CRIATIVO_01",
+            conjunto: "CONJUNTO_TESTE_ADSET",
+            campanha: "CAMPANHA_TESTE_NAME",
+            adId: "12034567890123456"
           }
         }),
         mode: 'no-cors'
@@ -464,9 +470,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       'Faturamento',
       '% percentual',
       'ID',
-      'Plataforma',
-      'Anuncio',
-      'Campanha'
+      'Plataforma (UTM Source)',
+      'Conjunto de Anúncios (UTM Medium)',
+      'Campanha (UTM Campaign)',
+      'Anúncio (UTM Content)',
+      'Posicionamento (UTM Term)',
+      'ID do Anúncio (ad_id)'
     ];
 
     const rows = leads.map(l => {
@@ -491,8 +500,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       const regiao = l.regiao || dddInfo.regiao || '';
 
       const plataforma = l.utmSource || '';
-      const anuncio = l.utmMedium || l.utmContent || '';
-      const campanha = l.utmCampaign || '';
+      const conjunto = l.utmMedium || l.conjunto || '';
+      const campanha = l.utmCampaign || l.campanha || '';
+      const anuncio = l.utmContent || l.anuncio || l.adId || '';
+      const posicionamento = l.utmTerm || l.posicionamento || '';
+      const adId = l.adId || '';
 
       return [
         dataHoraStr,
@@ -510,8 +522,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
         scoreFormatted,
         l.id || '',
         plataforma,
+        conjunto,
+        campanha,
         anuncio,
-        campanha
+        posicionamento,
+        adId
       ];
     });
 
@@ -1201,19 +1216,31 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
                       {/* Tracking UTMS Block */}
                       <div className="bg-white/2 p-4 rounded-2xl border border-white/5 space-y-2">
-                        <span className="text-[10px] font-mono text-brand-cyan uppercase tracking-wider block">Auditoria UTM / Marketing Digital</span>
-                        <div className="grid grid-cols-3 gap-2 text-[11px] font-mono">
+                        <span className="text-[10px] font-mono text-brand-cyan uppercase tracking-wider block">Auditoria UTM / Tráfego Pago</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
                           <div>
-                            <span className="text-[#A1A1AA] block">Source:</span>
+                            <span className="text-[#A1A1AA] block">Plataforma (Source):</span>
                             <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmSource || 'não fornecido'}</span>
                           </div>
                           <div>
-                            <span className="text-[#A1A1AA] block">Medium:</span>
-                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmMedium || 'não fornecido'}</span>
+                            <span className="text-[#A1A1AA] block">Campanha:</span>
+                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmCampaign || selectedLead.campanha || 'não fornecido'}</span>
                           </div>
                           <div>
-                            <span className="text-[#A1A1AA] block">Campaign:</span>
-                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmCampaign || 'não fornecido'}</span>
+                            <span className="text-[#A1A1AA] block">Conjunto (Medium):</span>
+                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmMedium || selectedLead.conjunto || 'não fornecido'}</span>
+                          </div>
+                          <div>
+                            <span className="text-brand-cyan font-bold block">Anúncio (Content):</span>
+                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmContent || selectedLead.anuncio || selectedLead.adId || 'não fornecido'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#A1A1AA] block">Posicionamento (Term):</span>
+                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.utmTerm || selectedLead.posicionamento || 'não fornecido'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#A1A1AA] block">ID do Anúncio (ad_id):</span>
+                            <span className="text-white font-semibold truncate block mt-0.5">{selectedLead.adId || 'não fornecido'}</span>
                           </div>
                         </div>
                       </div>
@@ -1421,8 +1448,8 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         className="w-full text-xs font-mono bg-[#0D0D0D] border border-white/10 rounded-xl px-3 py-2 text-white"
                       />
                       <details className="mt-2 text-[11px] text-[#A1A1AA]">
-                        <summary className="cursor-pointer hover:text-white transition-colors font-mono">
-                          📋 Ver código para o Google Apps Script (16 Colunas com Geolocalização DDD)
+                        <summary className="cursor-pointer hover:text-white transition-colors font-mono font-semibold text-brand-cyan">
+                          📋 Ver código atualizado do Google Apps Script (com Coluna do Anúncio, Conjunto, Campanha e IDs)
                         </summary>
                         <div className="mt-2 p-3 bg-[#000000] border border-white/10 rounded-xl text-[10px] font-mono text-emerald-400 overflow-x-auto select-all">
 {`function doPost(e) {
@@ -1434,24 +1461,38 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     var leadScoreVal = (lead && lead.leadScore !== undefined && lead.leadScore !== null) ? lead.leadScore : ((lead && lead.lead_score !== undefined) ? lead.lead_score : 0);
     
+    // Se a planilha for nova, cria a linha de cabeçalhos
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "Data/Hora", "Nome", "Empresa", "E-mail", "WhatsApp", 
+        "Estado", "UF", "DDD", "Região", "Segmento", 
+        "Já trabalhou com cacau", "Faturamento", "Score (%)", "ID", 
+        "Origem (UTM Source)", "Conjunto (UTM Medium)", "Campanha (UTM Campaign)", 
+        "Anúncio (UTM Content)", "Posicionamento (UTM Term)", "ID Anúncio"
+      ]);
+    }
+
     sheet.appendRow([
-      new Date(),                             // Coluna A: Data/Hora do envio
-      lead.nome || lead.Nome || "",           // Coluna B: Nome
-      lead.empresa || lead.Empresa || "",     // Coluna C: Nome da empresa
-      lead.email || lead['E-mail'] || "",     // Coluna D: E-mail
+      new Date(),                                           // Coluna A: Data/Hora do envio
+      lead.nome || lead.Nome || "",                         // Coluna B: Nome
+      lead.empresa || lead.Empresa || "",                   // Coluna C: Nome da empresa
+      lead.email || lead['E-mail'] || "",                   // Coluna D: E-mail
       lead.whatsapp || lead.telefone || lead.WhatsApp || "", // Coluna E: Telefone / WhatsApp
-      lead.estado || lead.Estado || "",       // Coluna F: Estado (identificado via DDD)
-      lead.uf || lead.UF || "",               // Coluna G: UF (ex: SP, RJ, MG)
-      lead.ddd || lead.DDD || "",             // Coluna H: DDD (ex: 11, 15, 73)
-      lead.regiao || lead.Regiao || "",       // Coluna I: Região (ex: Sudeste, Nordeste)
-      lead.segmento || lead.Segmento || "",   // Coluna J: Segmento
+      lead.estado || lead.Estado || "",                     // Coluna F: Estado (identificado via DDD)
+      lead.uf || lead.UF || "",                             // Coluna G: UF (ex: SP, RJ, MG)
+      lead.ddd || lead.DDD || "",                           // Coluna H: DDD (ex: 11, 15, 73)
+      lead.regiao || lead.Regiao || "",                     // Coluna I: Região (ex: Sudeste, Nordeste)
+      lead.segmento || lead.Segmento || "",                 // Coluna J: Segmento
       lead.trabalhaComCacau || lead.ja_trabalhou_com_cacau || "", // Coluna K: Já trabalhou com cacau?
-      lead.faturamento || lead.Faturamento || "", // Coluna L: Faturamento
-      leadScoreVal + "%",                     // Coluna M: % percentual (Score)
-      lead.id || lead.ID || "",               // Coluna N: ID único do lead
-      lead.utmSource || lead.utm_source || "",// Coluna O: UTM Source
-      lead.utmMedium || lead.utm_medium || "",// Coluna P: UTM Medium
-      lead.utmCampaign || lead.utm_campaign || "" // Coluna Q: UTM Campaign
+      lead.faturamento || lead.Faturamento || "",           // Coluna L: Faturamento
+      leadScoreVal + "%",                                   // Coluna M: % percentual (Score)
+      lead.id || lead.ID || "",                             // Coluna N: ID único do lead
+      lead.utmSource || lead.utm_source || "",              // Coluna O: UTM Source (ex: facebook)
+      lead.utmMedium || lead.utm_medium || "",              // Coluna P: UTM Medium (Conjunto: {{adset.name}})
+      lead.utmCampaign || lead.utm_campaign || "",          // Coluna Q: UTM Campaign (Campanha: {{campaign.name}})
+      lead.utmContent || lead.utm_content || lead.anuncio || lead.Anuncio || "", // Coluna R: UTM Content (Anúncio: {{ad.name}})
+      lead.utmTerm || lead.utm_term || lead.posicionamento || "",                // Coluna S: UTM Term (Posicionamento: {{placement}})
+      lead.adId || lead.ad_id || ""                         // Coluna T: ID do Anúncio ({{ad.id}})
     ]);
     
     return ContentService.createTextOutput(JSON.stringify({"status": "success"}))

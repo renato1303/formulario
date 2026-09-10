@@ -49,9 +49,32 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const utm_source = params.get('utm_source') || params.get('src') || '';
-    const utm_medium = params.get('utm_medium') || '';
     const utm_campaign = params.get('utm_campaign') || '';
-    const utm_content = params.get('utm_content') || params.get('utm_term') || '';
+    const utm_medium = params.get('utm_medium') || '';
+    const utm_content = params.get('utm_content') || '';
+    const utm_term = params.get('utm_term') || '';
+    const campaign_id = params.get('campaign_id') || '';
+    const adset_id = params.get('adset_id') || '';
+    const ad_id = params.get('ad_id') || '';
+
+    // Cache in sessionStorage to prevent parameter loss during multi-step form completion
+    if (utm_source) sessionStorage.setItem('ss_utm_source', utm_source);
+    if (utm_campaign) sessionStorage.setItem('ss_utm_campaign', utm_campaign);
+    if (utm_medium) sessionStorage.setItem('ss_utm_medium', utm_medium);
+    if (utm_content) sessionStorage.setItem('ss_utm_content', utm_content);
+    if (utm_term) sessionStorage.setItem('ss_utm_term', utm_term);
+    if (campaign_id) sessionStorage.setItem('ss_campaign_id', campaign_id);
+    if (adset_id) sessionStorage.setItem('ss_adset_id', adset_id);
+    if (ad_id) sessionStorage.setItem('ss_ad_id', ad_id);
+
+    const savedSource = utm_source || sessionStorage.getItem('ss_utm_source') || '';
+    const savedCampaign = utm_campaign || sessionStorage.getItem('ss_utm_campaign') || '';
+    const savedMedium = utm_medium || sessionStorage.getItem('ss_utm_medium') || '';
+    const savedContent = utm_content || sessionStorage.getItem('ss_utm_content') || '';
+    const savedTerm = utm_term || sessionStorage.getItem('ss_utm_term') || '';
+    const savedCampaignId = campaign_id || sessionStorage.getItem('ss_campaign_id') || '';
+    const savedAdsetId = adset_id || sessionStorage.getItem('ss_adset_id') || '';
+    const savedAdId = ad_id || sessionStorage.getItem('ss_ad_id') || '';
 
     // Simple UserAgent detection for tracking
     const ua = navigator.userAgent;
@@ -69,10 +92,18 @@ export default function App() {
     setDeviceInfo({ os, browser });
 
     const initialUtmLead = {
-      utmSource: utm_source || undefined,
-      utmMedium: utm_medium || undefined,
-      utmCampaign: utm_campaign || undefined,
-      utmContent: utm_content || undefined,
+      utmSource: savedSource || undefined,
+      utmMedium: savedMedium || undefined,
+      utmCampaign: savedCampaign || undefined,
+      utmContent: savedContent || undefined,
+      utmTerm: savedTerm || undefined,
+      campaignId: savedCampaignId || undefined,
+      adsetId: savedAdsetId || undefined,
+      adId: savedAdId || undefined,
+      anuncio: savedContent || savedAdId || undefined,
+      conjunto: savedMedium || undefined,
+      campanha: savedCampaign || undefined,
+      posicionamento: savedTerm || undefined,
       device: os,
       browser: browser
     };
@@ -118,12 +149,14 @@ export default function App() {
         const isPageViewAlreadyTracked = (window as any).__metaPixelPageViewTracked;
         const isAdmin = window.location.pathname.includes('/admin') || window.location.hash.includes('admin');
 
-        // Always disable autoConfig (automatic event tracking / microdata scraping)
+        // Always disable autoConfig, smartSetup, and codeless events (automatic event tracking / microdata scraping)
         (window as any).fbq('set', 'autoConfig', false, pixelId);
+        (window as any).fbq('set', 'smartSetup', false, pixelId);
+        (window as any).fbq('set', 'codeless', 'false', pixelId);
 
         // Only init if not already initialized with this exact Pixel ID
         if (!isAlreadyInitialized) {
-          (window as any).fbq('init', pixelId);
+          (window as any).fbq('init', pixelId, {}, { codeless: 'false' });
           (window as any).__metaPixelInitializedId = pixelId;
           console.log('Meta Pixel initialized with ID:', pixelId);
         }
@@ -393,8 +426,14 @@ export default function App() {
     };
 
     if (safeLead.utmSource) paramObj.utm_source = safeLead.utmSource;
-    if (safeLead.utmMedium || safeLead.utmContent) paramObj.utm_medium = safeLead.utmMedium || safeLead.utmContent || '';
     if (safeLead.utmCampaign) paramObj.utm_campaign = safeLead.utmCampaign;
+    if (safeLead.utmMedium) paramObj.utm_medium = safeLead.utmMedium;
+    if (safeLead.utmContent) paramObj.utm_content = safeLead.utmContent;
+    if (safeLead.utmTerm) paramObj.utm_term = safeLead.utmTerm;
+    if (safeLead.campaignId) paramObj.campaign_id = safeLead.campaignId;
+    if (safeLead.adsetId) paramObj.adset_id = safeLead.adsetId;
+    if (safeLead.adId) paramObj.ad_id = safeLead.adId;
+    if (safeLead.utmContent) paramObj.anuncio = safeLead.utmContent;
 
     const urlParams = new URLSearchParams(paramObj);
 
@@ -530,6 +569,12 @@ export default function App() {
               utm_source: finalLead.utmSource || '',
               utm_medium: finalLead.utmMedium || '',
               utm_campaign: finalLead.utmCampaign || '',
+              utm_content: finalLead.utmContent || '',
+              utm_term: finalLead.utmTerm || '',
+              anuncio: finalLead.utmContent || finalLead.adId || '',
+              ad_id: finalLead.adId || '',
+              adset_id: finalLead.adsetId || '',
+              campaign_id: finalLead.campaignId || '',
               lead_score: score,
               status: 'Novo'
             }
@@ -665,8 +710,13 @@ export default function App() {
     const scoreFormatted = `${rawScore}%`;
 
     const plataforma = finalLead.utmSource || '';
-    const anuncio = finalLead.utmMedium || finalLead.utmContent || '';
+    const conjunto = finalLead.utmMedium || '';
     const campanha = finalLead.utmCampaign || '';
+    const anuncio = finalLead.utmContent || finalLead.adId || '';
+    const posicionamento = finalLead.utmTerm || '';
+    const adId = finalLead.adId || '';
+    const adsetId = finalLead.adsetId || '';
+    const campaignId = finalLead.campaignId || '';
 
     const plainTextMessage = buildFormattedMessageText(finalLead);
     const encodedWhatsappMessage = buildWhatsAppMessage(finalLead);
@@ -710,8 +760,18 @@ export default function App() {
       percentual: scoreFormatted,
       id: finalLead.id || '',
       utmSource: finalLead.utmSource || '',
-      utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+      utmMedium: finalLead.utmMedium || '',
       utmCampaign: finalLead.utmCampaign || '',
+      utmContent: finalLead.utmContent || '',
+      utmTerm: finalLead.utmTerm || '',
+      anuncio: anuncio,
+      conjunto: conjunto,
+      campanha: campanha,
+      plataforma: plataforma,
+      posicionamento: posicionamento,
+      adId: adId,
+      adsetId: adsetId,
+      campaignId: campaignId,
 
       // Formatted text message containing all responses answered in the form
       mensagem: plainTextMessage,
@@ -721,7 +781,7 @@ export default function App() {
       mensagemWhatsapp: encodedWhatsappMessage,
       whatsappLink: `https://wa.me/5521972736030?text=${encodedWhatsappMessage}`,
 
-      // Column name keys for backwards compatibility
+      // Column name keys for backwards compatibility and various Sheets formats
       'Data/hora': dataHoraFormatted,
       'Nome': finalLead.nome || '',
       'Nome da empresa': finalLead.empresa || '',
@@ -738,11 +798,27 @@ export default function App() {
       '% percentual': scoreFormatted,
       'ID': finalLead.id || '',
       'UTM Source': finalLead.utmSource || '',
-      'UTM Medium': finalLead.utmMedium || finalLead.utmContent || '',
+      'UTM Medium': finalLead.utmMedium || '',
       'UTM Campaign': finalLead.utmCampaign || '',
+      'UTM Content': finalLead.utmContent || '',
+      'UTM Term': finalLead.utmTerm || '',
       'Plataforma': plataforma,
-      'Anuncio': anuncio,
+      'Conjunto': conjunto,
+      'Conjunto de Anúncios': conjunto,
       'Campanha': campanha,
+      'Anúncio': anuncio,
+      'Anuncio': anuncio,
+      'Posicionamento': posicionamento,
+      'ID do Anúncio': adId,
+      'ID Anúncio': adId,
+      'ad_id': adId,
+      'adset_id': adsetId,
+      'campaign_id': campaignId,
+      'utm_source': finalLead.utmSource || '',
+      'utm_medium': finalLead.utmMedium || '',
+      'utm_campaign': finalLead.utmCampaign || '',
+      'utm_content': finalLead.utmContent || '',
+      'utm_term': finalLead.utmTerm || '',
       'Mensagem': plainTextMessage,
       dataHora: dataHoraFormatted,
       data_hora: dataHoraFormatted
@@ -760,9 +836,12 @@ export default function App() {
       finalLead.faturamento || '',
       scoreFormatted,
       finalLead.id || '',
-      finalLead.utmSource || '',
-      finalLead.utmMedium || finalLead.utmContent || '',
-      finalLead.utmCampaign || ''
+      finalLead.utmSource || '',     // Coluna O: UTM Source (ex: facebook)
+      finalLead.utmMedium || '',     // Coluna P: UTM Medium (ex: {{adset.name}} - Conjunto)
+      finalLead.utmCampaign || '',   // Coluna Q: UTM Campaign (ex: {{campaign.name}} - Campanha)
+      finalLead.utmContent || '',    // Coluna R: UTM Content (ex: {{ad.name}} - Anúncio)
+      finalLead.utmTerm || '',       // Coluna S: UTM Term (ex: {{placement}} - Posicionamento)
+      finalLead.adId || ''           // Coluna T: ad_id
     ];
 
     const payload = {
@@ -849,8 +928,38 @@ export default function App() {
             percentual: scoreFormatted,
             id: finalLead.id || '',
             utmSource: finalLead.utmSource || '',
-            utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+            utmMedium: finalLead.utmMedium || '',
             utmCampaign: finalLead.utmCampaign || '',
+            utmContent: finalLead.utmContent || '',
+            utmTerm: finalLead.utmTerm || '',
+            anuncio: anuncio,
+            Anuncio: anuncio,
+            'Anúncio': anuncio,
+            conjunto: conjunto,
+            Conjunto: conjunto,
+            'Conjunto de Anúncios': conjunto,
+            campanha: campanha,
+            Campanha: campanha,
+            plataforma: plataforma,
+            Plataforma: plataforma,
+            posicionamento: posicionamento,
+            Posicionamento: posicionamento,
+            adId: adId,
+            adsetId: adsetId,
+            campaignId: campaignId,
+            'UTM Source': finalLead.utmSource || '',
+            'UTM Medium': finalLead.utmMedium || '',
+            'UTM Campaign': finalLead.utmCampaign || '',
+            'UTM Content': finalLead.utmContent || '',
+            'UTM Term': finalLead.utmTerm || '',
+            utm_source: finalLead.utmSource || '',
+            utm_medium: finalLead.utmMedium || '',
+            utm_campaign: finalLead.utmCampaign || '',
+            utm_content: finalLead.utmContent || '',
+            utm_term: finalLead.utmTerm || '',
+            ad_id: adId,
+            adset_id: adsetId,
+            campaign_id: campaignId,
             mensagem: plainTextMessage,
             message: plainTextMessage,
             resumo: plainTextMessage,
@@ -890,8 +999,38 @@ export default function App() {
           percentual: scoreFormatted,
           id: finalLead.id || '',
           utmSource: finalLead.utmSource || '',
-          utmMedium: finalLead.utmMedium || finalLead.utmContent || '',
+          utmMedium: finalLead.utmMedium || '',
           utmCampaign: finalLead.utmCampaign || '',
+          utmContent: finalLead.utmContent || '',
+          utmTerm: finalLead.utmTerm || '',
+          anuncio: anuncio,
+          Anuncio: anuncio,
+          'Anúncio': anuncio,
+          conjunto: conjunto,
+          Conjunto: conjunto,
+          'Conjunto de Anúncios': conjunto,
+          campanha: campanha,
+          Campanha: campanha,
+          plataforma: plataforma,
+          Plataforma: plataforma,
+          posicionamento: posicionamento,
+          Posicionamento: posicionamento,
+          adId: adId,
+          adsetId: adsetId,
+          campaignId: campaignId,
+          'UTM Source': finalLead.utmSource || '',
+          'UTM Medium': finalLead.utmMedium || '',
+          'UTM Campaign': finalLead.utmCampaign || '',
+          'UTM Content': finalLead.utmContent || '',
+          'UTM Term': finalLead.utmTerm || '',
+          utm_source: finalLead.utmSource || '',
+          utm_medium: finalLead.utmMedium || '',
+          utm_campaign: finalLead.utmCampaign || '',
+          utm_content: finalLead.utmContent || '',
+          utm_term: finalLead.utmTerm || '',
+          ad_id: adId,
+          adset_id: adsetId,
+          campaign_id: campaignId,
           mensagem: plainTextMessage,
           message: plainTextMessage,
           resumo: plainTextMessage,

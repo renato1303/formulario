@@ -29,6 +29,14 @@ export interface LeadData {
   utmMedium?: string;
   utmCampaign?: string;
   utmContent?: string;
+  utmTerm?: string;
+  campaignId?: string;
+  adsetId?: string;
+  adId?: string;
+  anuncio?: string;
+  conjunto?: string;
+  campanha?: string;
+  posicionamento?: string;
   device?: string;
   browser?: string;
 
